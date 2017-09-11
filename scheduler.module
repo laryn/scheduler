@@ -21,6 +21,15 @@ define('SCHEDULER_DATE_LETTERS', 'djmnFMyY');
 define('SCHEDULER_TIME_LETTERS', 'hHgGisaA');
 
 /**
+ * Implements hook_autoload_info().
+ */
+function scheduler_autoload_info() {
+  return array(
+    'SchedulerHandlerFieldSchedulerCountdown' => 'includes/scheduler_handler_field_scheduler_countdown.inc',
+  );
+}
+
+/**
  * Implements hook_permission().
  */
 function scheduler_permission() {
@@ -57,7 +66,7 @@ function scheduler_menu() {
   // Redirect the legacy URL 'scheduler/timecheck' to the new admin tab
   // 'admin/config/content/scheduler/timecheck'.
   $items['scheduler/timecheck'] = array(
-    'page callback' => 'drupal_goto',
+    'page callback' => 'backdrop_goto',
     'page arguments' => array('admin/config/content/scheduler/timecheck'),
     'access arguments' => array('administer scheduler'),
     'type' => MENU_CALLBACK,
@@ -65,7 +74,7 @@ function scheduler_menu() {
   $items['admin/config/content/scheduler'] = array(
     'title' => 'Scheduler',
     'description' => "Configure settings for scheduled publishing and unpublishing, run the lightweight cron and check your servers clock time.",
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('scheduler_admin'),
     'access arguments' => array('administer scheduler'),
     'type' => MENU_NORMAL_ITEM,
@@ -79,7 +88,7 @@ function scheduler_menu() {
   $items['admin/config/content/scheduler/cron'] = array(
     'title' => 'Lightweight Cron',
     'description' => 'A lightweight cron handler to allow more frequent runs of Schedulers internal cron system.',
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('_scheduler_lightweight_cron'),
     'access arguments' => array('administer scheduler'),
     'type' => MENU_LOCAL_TASK,
@@ -117,7 +126,7 @@ function scheduler_menu() {
   $items['admin/content/scheduler/delete/%'] = array(
     'title' => 'Delete Scheduled Data',
     'description' => 'Delete obsolete rows from Scheduler table',
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('_scheduler_delete_row_confirm', 4),
     'access arguments' => array('administer scheduler'),
     'type' => MENU_CALLBACK,
@@ -156,47 +165,13 @@ function scheduler_list_access_callback($uid = NULL) {
 }
 
 /**
- * Implements hook_help().
- */
-function scheduler_help($section) {
-  $output = '';
-  switch ($section) {
-    case 'admin/config/content/scheduler':
-      $output = '<p>' . t('Some Scheduler options are set for each different content type, and are accessed via the <a href="@link">admin content type</a> list.', array('@link' => url('admin/structure/types'))) . '</br>';
-      $output .= t('The options and settings below are common to all content types.') . '</p>';
-      break;
-
-    case 'admin/config/content/scheduler/cron':
-      $base_url = $GLOBALS['base_url'];
-      $access_key = variable_get('scheduler_lightweight_access_key', '');
-      $cron_url = $base_url . '/scheduler/cron' . ($access_key ? '/' . $access_key : '');
-      $output = '<p>' . t("When you have set up Drupal's standard crontab job cron.php then Scheduler will be executed during each cron run. However, if you would like finer granularity to scheduler, but don't want to run Drupal's cron more often then you can use the lightweight cron handler provided by Scheduler. This is an independent cron job which only runs the scheduler process and does not execute any cron tasks defined by Drupal core or any other modules.") . '</p>';
-      $output .= '<p>' . t("Scheduler's cron is at /scheduler/cron and a sample crontab entry to run scheduler every minute might look like:") . '</p>';
-      $output .= '<code>* * * * * wget -q -O /dev/null "' . $cron_url . '"</code>';
-      $output .= '<p>' . t('or') . '</p>';
-      $output .= '<code>* * * * * curl -s -o /dev/null "' . $cron_url . '"</code><br/><br/>';
-      break;
-
-    case 'admin/help#scheduler':
-      // This is shown at the top of admin/help/scheduler.
-      $output = '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('The Scheduler module provides the functionality for automatic publishing and unpublishing of nodes at specified future dates.') . '</p>';
-      $output .= '<p>' . t('You can read more in the <a href="@readme">readme.txt</a> file.', array('@readme' => $GLOBALS['base_url'] . '/' . drupal_get_path('module', 'scheduler') . '/README.txt')) . '</p>';
-      break;
-
-    default:
-  }
-  return $output;
-}
-
-/**
  * Returns whether we use the date_popup for date/time selection.
  *
  * @return bool
  *   TRUE if we are using date_popup. FALSE otherwise.
  */
 function _scheduler_use_date_popup() {
-  return module_exists('date_popup') && variable_get('scheduler_field_type', 'date_popup') == 'date_popup';
+  return module_exists('date') && config_get('scheduler.settings','field_type') == 'date_popup';
 }
 
 /**
@@ -214,10 +189,10 @@ function scheduler_form_node_type_form_alter(&$form, $form_state) {
 function scheduler_form_alter(&$form, $form_state) {
   // Load the real code only when needed. First check if this a node form and
   // that the user has permission to use Scheduler.
-  if (!empty($form['#node_edit_form']) && user_access('schedule publishing of nodes')) {
+  if (in_array('node-form', $form['#attributes']['class']) && user_access('schedule publishing of nodes')) {
     // Check if scheduling has been enabled for this node type.
-    $publishing_enabled = variable_get('scheduler_publish_enable_' . $form['type']['#value'], 0) == 1;
-    $unpublishing_enabled = variable_get('scheduler_unpublish_enable_' . $form['type']['#value'], 0) == 1;
+    $publishing_enabled = config_get('node.type.' . $form['type']['#value'], 'settings.scheduler_publish_enable') == 1;
+    $unpublishing_enabled = config_get('node.type.' . $form['type']['#value'], 'settings.scheduler_unpublish_enable') == 1;
     if ($publishing_enabled || $unpublishing_enabled) {
       module_load_include('inc', 'scheduler', 'scheduler.edit');
       _scheduler_form_alter($form, $form_state);
@@ -485,7 +460,7 @@ function scheduler_node_view($node, $view_mode, $langcode) {
   // full-page view of the node.
   // @see https://googleblog.blogspot.be/2007/07/robots-exclusion-protocol-now-with-even.html
   if ($view_mode == 'full' && !empty($node->unpublish_on) && node_is_page($node) && arg(2) != 'edit') {
-    drupal_add_http_header('X-Robots-Tag', 'unavailable_after: ' . date(DATE_RFC850, $node->unpublish_on));
+    backdrop_add_http_header('X-Robots-Tag', 'unavailable_after: ' . date(DATE_RFC850, $node->unpublish_on));
   }
 }
 
@@ -524,7 +499,7 @@ function scheduler_node_validate($node, $form, &$form_state) {
     if ($publishtime === FALSE) {
       form_set_error('publish_on', t("The 'publish on' value does not match the expected format of %time", $args));
     }
-    elseif ($publishtime && variable_get('scheduler_publish_past_date_' . $node->type, 'error') == 'error' && $publishtime < REQUEST_TIME) {
+    elseif ($publishtime && config_get('node.type.' . $node->type, 'scheduler_publish_past_date') == 'error' && $publishtime < REQUEST_TIME) {
       form_set_error('publish_on', t("The 'publish on' date must be in the future"));
     }
   }
@@ -597,7 +572,7 @@ function scheduler_node_presave($node) {
       // message themselves explaining why publication is denied.
       if ($publication_allowed) {
         $date_format = variable_get('scheduler_date_format', SCHEDULER_DATE_FORMAT);
-        drupal_set_message(t('This post is unpublished and will be published @publish_time.', array(
+        backdrop_set_message(t('This post is unpublished and will be published @publish_time.', array(
           '@publish_time' => format_date($node->publish_on, 'custom', $date_format),
         )), 'status', FALSE);
       }
@@ -704,10 +679,10 @@ function scheduler_cron() {
     i18n_sync(FALSE);
   }
 
-  // Use drupal_static so that any function can find out if we are running
+  // Use backdrop_static so that any function can find out if we are running
   // Scheduler cron. Set the default value to FALSE, then turn on the flag.
   // @see scheduler_cron_is_running()
-  $scheduler_cron = &drupal_static(__FUNCTION__, FALSE);
+  $scheduler_cron = &backdrop_static(__FUNCTION__, FALSE);
   $scheduler_cron = TRUE;
 
   // If the option is enabled clear caches if a node was published or
@@ -721,7 +696,7 @@ function scheduler_cron() {
   }
 
   // Reset the static scheduler_cron flag.
-  drupal_static_reset(__FUNCTION__);
+  backdrop_static_reset(__FUNCTION__);
 
   // Restore the i18n_sync state.
   module_exists('i18n_sync') ? i18n_sync($i18n_sync_saved_state) : NULL;
@@ -737,7 +712,7 @@ function scheduler_cron() {
  *   TRUE if scheduler_cron is currently running. FALSE if not.
  */
 function scheduler_cron_is_running() {
-  return drupal_static('scheduler_cron');
+  return backdrop_static('scheduler_cron');
 }
 
 /**

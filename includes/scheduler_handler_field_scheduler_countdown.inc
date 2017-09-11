@@ -45,7 +45,7 @@ class SchedulerHandlerFieldSchedulerCountdown extends views_handler_field {
    *   An associative array containing the options.
    */
   // @codingStandardsIgnoreStart
-  // The name fails Drupal.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
+  // The name fails Backdrop.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
   // However, it is defined in Views module and cannot be corrected, hence we
   // need to ignore this fault and not report it.
   public function option_definition() {

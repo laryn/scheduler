@@ -14,12 +14,15 @@
  * @see scheduler_form_alter()
  */
 function _scheduler_form_alter(&$form, $form_state) {
-  $publishing_enabled = variable_get('scheduler_publish_enable_' . $form['type']['#value'], 0) == 1;
-  $unpublishing_enabled = variable_get('scheduler_unpublish_enable_' . $form['type']['#value'], 0) == 1;
-  $date_format = variable_get('scheduler_date_format', SCHEDULER_DATE_FORMAT);
-  $date_only_format = variable_get('scheduler_date_only_format', SCHEDULER_DATE_ONLY_FORMAT);
-  $time_only_format = variable_get('scheduler_time_only_format', SCHEDULER_TIME_ONLY_FORMAT);
-  $date_only_allowed = variable_get('scheduler_allow_date_only', FALSE);
+  $form['#config'] = 'node.type.' . $form['type']['#value'];
+  $config = config('node.type.' . $form['type']['#value']);
+  $scheduler_config = config('scheduler.settings');
+  $publishing_enabled = $config->get('settings.scheduler_publish_enable') == 1;
+  $unpublishing_enabled = $config->get('settings.scheduler_unpublish_enable') == 1;
+  $date_format = $scheduler_config->get('scheduler_date_format');
+  $date_only_format = $scheduler_config->get('scheduler_date_only_format');
+  $time_only_format = $scheduler_config->get('scheduler_time_only_format');
+  $date_only_allowed = $scheduler_config->get('scheduler_allow_date_only');
   $use_date_popup = _scheduler_use_date_popup();
   $internal_date_format = $use_date_popup ? SCHEDULER_DATE_FORMAT : $date_format;
   $node = $form['#node'];
@@ -57,22 +60,23 @@ function _scheduler_form_alter(&$form, $form_state) {
 
   // A publish_on date is required if the content type option is set and the
   // node is being created or it currently has a scheduled publishing date.
-  $publishing_required = variable_get('scheduler_publish_required_' . $form['type']['#value'], 0) == 1
+  $publishing_required = $config->get('settings.scheduler_publish_required') == 1
     && (empty($node->nid) || ($node->status == 0 && !empty($node->publish_on)));
 
   // An unpublish_on date is required if the content type option is set and
   // the node is being created or the current status is published or the
   // node is scheduled to be published.
-  $unpublishing_required = variable_get('scheduler_unpublish_required_' . $form['type']['#value'], 0) == 1
+  $unpublishing_required = $config->get('settings.scheduler_unpublish_required') == 1
     && (empty($node->nid) || $node->status == 1 || !empty($node->publish_on));
 
-  $use_vertical_tabs = variable_get('scheduler_use_vertical_tabs_' . $form['type']['#value'], 1);
+  $use_vertical_tabs = $config->get('settings.scheduler_use_vertical_tabs');
+  debug($form);
   $fieldset_extended = (
     (isset($defaults->publish_on) && $defaults->publish_on != 0)
     || (isset($defaults->unpublish_on) && $defaults->unpublish_on != 0)
     || $publishing_required
     || $unpublishing_required
-    || variable_get('scheduler_expand_fieldset_' . $form['type']['#value'], 0)
+    || $config->get('settings.scheduler_expand_fieldset')
   );
 
   $form['scheduler_settings'] = array(
@@ -86,10 +90,10 @@ function _scheduler_form_alter(&$form, $form_state) {
   // Add Scheduler settings to Vertical Tabs group and attach the javascript.
   if ($use_vertical_tabs) {
     $form['scheduler_settings']['#group'] = 'additional_settings';
-    $form['scheduler_settings']['#attached']['js'][] = drupal_get_path('module', 'scheduler') . '/scheduler_vertical_tabs.js';
+    $form['scheduler_settings']['#attached']['js'][] = backdrop_get_path('module', 'scheduler') . '/js/scheduler_vertical_tabs.js';
   }
 
-  $extra_info = variable_get('scheduler_extra_info', '');
+  $extra_info = config_get('scheduler.settings','extra_info');
   if ($extra_info && $extra_info != '') {
     $form['scheduler_settings']['extra_info'] = array(
       '#type' => 'item',
@@ -113,7 +117,7 @@ function _scheduler_form_alter(&$form, $form_state) {
   // Show the default time so users know what they will get if they do not
   // enter a time.
   if ($date_only_allowed) {
-    $default_time = strtotime(variable_get('scheduler_default_time', SCHEDULER_DEFAULT_TIME));
+    $default_time = strtotime(config_get('scheduler.settings','default_time'));
     $descriptions['default'] = t('The default time is @default_time.', array(
       '@default_time' => format_date($default_time, 'custom', $time_only_format ? $time_only_format : SCHEDULER_TIME_ONLY_FORMAT),
     ));
@@ -138,7 +142,7 @@ function _scheduler_form_alter(&$form, $form_state) {
       $form['scheduler_settings']['publish_on']['#type'] = 'date_popup';
       $form['scheduler_settings']['publish_on']['#date_format'] = $date_format;
       $form['scheduler_settings']['publish_on']['#date_year_range'] = '0:+10';
-      $form['scheduler_settings']['publish_on']['#date_increment'] = variable_get('scheduler_date_popup_minute_increment', 1);
+      $form['scheduler_settings']['publish_on']['#date_increment'] = config_get('scheduler.settings','date_popup_minute_increment');
       unset($descriptions['format']);
       $form['scheduler_settings']['publish_on']['#description'] = filter_xss(implode(' ', $descriptions));
       unset($form['scheduler_settings']['publish_on']['#maxlength']);
@@ -167,7 +171,7 @@ function _scheduler_form_alter(&$form, $form_state) {
       $form['scheduler_settings']['unpublish_on']['#type'] = 'date_popup';
       $form['scheduler_settings']['unpublish_on']['#date_format'] = $date_format;
       $form['scheduler_settings']['unpublish_on']['#date_year_range'] = '0:+10';
-      $form['scheduler_settings']['unpublish_on']['#date_increment'] = variable_get('scheduler_date_popup_minute_increment', 1);
+      $form['scheduler_settings']['unpublish_on']['#date_increment'] = config_get('scheduler.settings','date_popup_minute_increment');
       unset($descriptions['format']);
       $form['scheduler_settings']['unpublish_on']['#description'] = filter_xss(implode(' ', $descriptions));
       unset($form['scheduler_settings']['unpublish_on']['#maxlength']);
