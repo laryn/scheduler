@@ -147,6 +147,9 @@ function _scheduler_form_alter(&$form, $form_state) {
           'type' => 'inline',
         ))
       );
+      $form['scheduler_settings']['publish_on']['#date_format'] = $date_format;
+      $form['scheduler_settings']['publish_on']['#date_year_range'] = '0:+10';
+      $form['scheduler_settings']['publish_on']['#date_increment'] = config_get('scheduler.settings','scheduler_date_popup_minute_increment');
       unset($descriptions['format']);
       $form['scheduler_settings']['publish_on']['#description'] = filter_xss(implode(' ', $descriptions));
     }
@@ -168,7 +171,6 @@ function _scheduler_form_alter(&$form, $form_state) {
       '#description' => filter_xss(implode(' ', $descriptions)),
       '#value_callback' => 'scheduler_date_value_callback',
     );
-debug($use_date_popup);
     if ($use_date_popup) {
       // Make this a popup calendar widget.
       $form['scheduler_settings']['unpublish_on']['#attached'] = array(
@@ -180,6 +182,9 @@ debug($use_date_popup);
           'type' => 'inline',
         ))
       );
+      $form['scheduler_settings']['unpublish_on']['#date_format'] = $date_format;
+      $form['scheduler_settings']['unpublish_on']['#date_year_range'] = '0:+10';
+      $form['scheduler_settings']['unpublish_on']['#date_increment'] = config_get('scheduler.settings','scheduler_date_popup_minute_increment');
       unset($descriptions['format']);
       $form['scheduler_settings']['unpublish_on']['#description'] = filter_xss(implode(' ', $descriptions));
     }
