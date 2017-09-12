@@ -35,5 +35,5 @@ function drush_scheduler_cron() {
   // function_exists('drush_main') to do conditional code.
   scheduler_cron();
   $nomsg = drush_get_option('nomsg', NULL);
-  $nomsg ? NULL : drupal_set_message(t('Scheduler lightweight cron completed.'));
+  $nomsg ? NULL : backdrop_set_message(t('Scheduler lightweight cron completed.'));
 }

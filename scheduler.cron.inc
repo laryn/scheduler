@@ -37,7 +37,7 @@ function _scheduler_publish() {
   $nids = array_unique(array_merge($nids, _scheduler_scheduler_nid_list($action)));
 
   // Allow other modules to alter the list of nodes to be published.
-  drupal_alter('scheduler_nid_list', $nids, $action);
+  backdrop_alter('scheduler_nid_list', $nids, $action);
 
   foreach ($nids as $nid) {
     $n = node_load($nid);
@@ -78,7 +78,9 @@ function _scheduler_publish() {
     watchdog('scheduler', '@type: scheduled publishing of %title.', array('@type' => $n->type, '%title' => $n->title), WATCHDOG_NOTICE, l(t('view'), 'node/' . $n->nid, array('alias' => TRUE)));
     $actions = array('node_publish_action', 'node_save_action');
     $context['node'] = $n;
-    actions_do($actions, $n, $context, NULL, NULL);
+    foreach($actions as $action) {
+      actions_execute($action, $n, $context);
+    }
 
     // Invoke the event to tell Rules that Scheduler has published this node.
     if (module_exists('rules')) {
@@ -123,7 +125,7 @@ function _scheduler_unpublish() {
   $nids = array_unique(array_merge($nids, _scheduler_scheduler_nid_list($action)));
 
   // Allow other modules to alter the list of nodes to be unpublished.
-  drupal_alter('scheduler_nid_list', $nids, $action);
+  backdrop_alter('scheduler_nid_list', $nids, $action);
 
   foreach ($nids as $nid) {
     $n = node_load($nid);
@@ -168,7 +170,9 @@ function _scheduler_unpublish() {
     watchdog('scheduler', '@type: scheduled unpublishing of %title.', array('@type' => $n->type, '%title' => $n->title), WATCHDOG_NOTICE, l(t('view'), 'node/' . $n->nid, array('alias' => TRUE)));
     $actions = array('node_unpublish_action', 'node_save_action');
     $context['node'] = $n;
-    actions_do($actions, $n, $context, NULL, NULL);
+    foreach ($actions as $action) {
+      actions_execute($action, $n, $context);
+    }
 
     // Invoke event to tell Rules that Scheduler has unpublished this node.
     if (module_exists('rules')) {
@@ -237,14 +241,14 @@ function _scheduler_run_cron() {
     // Give a message and return something so that an output page is created.
     // No output should be returned if running from a crontab job.
     if (module_exists('dblog')) {
-      drupal_set_message(t('Lightweight cron run completed - see <a href="@url">log</a> for details.', array('@url' => url('admin/reports/dblog'))));
+      backdrop_set_message(t('Lightweight cron run completed - see <a href="@url">log</a> for details.', array('@url' => url('admin/reports/dblog'))));
     }
     else {
-      drupal_set_message(t('Lightweight cron run completed.'));
+      backdrop_set_message(t('Lightweight cron run completed.'));
     }
     return ' ';
   }
-  // drupal_exit() is the proper controlled way to terminate the request, as
+  // backdrop_exit() is the proper controlled way to terminate the request, as
   // this will invoke all implementations of hook_exit().
-  drupal_exit();
+  backdrop_exit();
 }

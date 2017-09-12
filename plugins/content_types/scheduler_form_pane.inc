@@ -12,8 +12,8 @@ $plugin = array(
   'edit form' => 'scheduler_form_pane_node_form_menu_content_type_edit_form',
   'render callback' => 'scheduler_form_pane_content_type_render',
   'title' => t('Node form scheduler'),
-  'icon' => drupal_get_path('module', 'ctools') . '/plugins/content_types/node_form/icon_node_form.png',
-  'description' => t('Scheduler date options on the Node form.'),
+  'icon' => backdrop_get_path('module', 'ctools') . '/plugins/content_types/node_form/icon_node_form.png',
+  'description' => t('Scheduler date options on the content form.'),
   'required context' => new ctools_context_required(t('Form'), 'node_form'),
   'category' => t('Form'),
 );
