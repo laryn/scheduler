@@ -1,6 +1,7 @@
 name = Scheduler
 description = This module allows content to be published and unpublished on specified dates and time.
 backdrop = 1.x
+type = module
 configure = admin/config/content/scheduler
 dependencies[] = node
 
