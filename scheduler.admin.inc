@@ -45,30 +45,6 @@ function scheduler_admin() {
     $form['field_type']['#description'] = t('To use the calendar you need to enable the Date module.');
   }
 
-  // Variable 'date_popup_timepicker' holds the type of timepicker selected.
-  $timepicker_enabled = ($config->get('scheduler_date_popup_timepicker') != 'none');
-  $options = array('@date_popup_config' => url('admin/config/date/date_popup'));
-  $description[] = t('Restrict the time entry to specific minute increments.');
-  $description[] = ($timepicker_enabled
-    ? t('The timepicker type can be selected via the <a href="@date_popup_config">Date Popup configuration page</a>.', $options)
-    : t('The timepicker is not enabled - turn it on via the <a href="@date_popup_config">Date Popup configuration page</a>.', $options));
-  $form['date_popup_minute_increment'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Date Popup minute increment'),
-    '#description' => implode(' ', $description),
-    '#field_suffix' => t('minutes'),
-    '#size' => 2,
-    '#maxlength' => 2,
-    '#disabled' => !$timepicker_enabled,
-    '#default_value' => $config->get('scheduler_date_popup_minute_increment'),
-    '#element_validate' => array('element_validate_integer_positive'),
-    '#states' => array(
-      'visible' => array(
-        ':input[name="scheduler_field_type"]' => array('value' => 'date_popup'),
-      ),
-    ),
-  );
-
   // Options for setting date-only with default time.
   $form['date_only_fieldset'] = array(
     '#type' => 'fieldset',
