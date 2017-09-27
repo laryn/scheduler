@@ -1,74 +1,49 @@
+# Scheduler
 
-README
---------------------------------------------------------------------------
-This module allows nodes to be published and unpublished on specified dates.
+**STATUS: Port in progress**
 
-Dates can be entered either as plain text or with Javascript calendar
-popups (JSCalendar in Drupal 5, Date Popup in Drupal 6).
+This module allows content to be published and unpublished on specified dates.
 
-JSCalendar is part of the JSTools module (http://drupal.org/project/jstools).
-Date Popup is part of the the Date module (http://drupal.org/project/date).
+Dates can be entered either as plain text or with the core Date Popup widget.
 
-Notice:
-- Please check if cron is running correctly if scheduler does not publish your
-  scheduled nodes.
-- Scheduler does only schedule publishing and unpublishing of nodes. If you
-  want to schedule any other activity check out Workflow
-  (http://drupal.org/project/workflow), Rules (http://drupal.org/project/rules)
-  and Actions (http://drupal.org/project/actions).
+## Installation
 
-Scheduler is the work of many people. Some of them are listed here:
-http://drupal.org/project/developers/3292. But there are even more: All the
-people who created patches but did not check them in themselfs, who posted bug
-or feature request and those who provided translations and documentation.
+ - Install this module and its dependencies using the official 
+  [Backdrop CMS instructions](https://backdropcms.org/guide/modules)
+ - Grant users the permission "Schedule content publication" so they can
+   set when the content they create are to be (un)published.
 
-This module has been completely rewritten for Drupal 4.7 by:
+## Configuration and Usage
 
-Ted Serbinski <hello [at] tedserbinski.com>
-  aka "m3avrck" on http://drupal.org
+ - Checkboxes are provided when configuring content types, allowing you to
+ enable scheduled publishing and/or unpublishing for that content type:
+ ![Scheduler Configuration](https://github.com/backdrop-contrib/scheduler/blob/1.x-1.x/images/scheduler-content-type-configuration.jpg "Scheduler Configuration")
+ - Further documentation may be available in the 
+ [Wiki](https://github.com/backdrop-contrib/scheduler/wiki).
 
+## Issues
 
-This module was originally written for Drupal 4.5.0 by:
+Bugs and Feature requests should be reported in the 
+[Issue Queue](https://github.com/backdrop-contrib/scheduler/issues). **Please 
+check if cron is running correctly if scheduler does not (un)publish your 
+scheduled content.**
 
-Moshe Weitzman <weitzman [at] tejasa.com>
-Gabor Hojtsy <goba [at] php.net>
-Tom Dobes <tomdobes [at] purdue.edu>
+## Current Maintainers
 
+ - [Laryn Kragt Bakker](https://github.com/laryn) - [CEDC.org](https://cedc.org)
 
-INSTALLATION
---------------------------------------------------------------------------
-1. Copy the scheduler.module to your modules directory
-2. Enable module, database schemas will be setup automatically.     
-3. Grant users the permission "Schedule content publication" so they can
-   set when the nodes they create are to be (un)published.
-   
-4. Visit admin > settings > content-types and click on any node type and
-   check the box "enable scheduled (un)publishing" for this node type
-   
-5. Repeat for all node types that you want scheduled publishing for
+## Credits
 
-The scheduler will run with Drupal's cron.php, and will (un)publish nodes
-timed on or before the time at which cron runs.  If you'd like finer
-granularity to scheduler, but don't want to run Drupal's cron more often (due
-to its taking too many cycles to run every minute, for example), you can set
-up another cron job for the scheduler to run independently.  Scheduler's cron
-is at /scheduler/cron; a sample crontab entry to run scheduler every minute
-would look like:
+- Ported to Backdrop CMS by [Laryn Kragt Bakker](https://github.com/laryn) - [CEDC.org](https://cedc.org).
+ - Scheduler for Drupal is the work of many people. 
+[Some of them are listed here](https://www.drupal.org/node/3292/committers),  
+but there are even more: All the people who created patches but did not check 
+them in themselves, who posted bug or feature requests and those who provided 
+translations and documentation.
+ - This module was originally written for Drupal 4.5.0 by Moshe Weitzman, Gabor 
+Hojtsy, and Tom Dobes. It was completely rewritten for Drupal 4.7 by Ted Serbinski.
 
-* * * * * /usr/bin/wget -O - -q "http://example.com/scheduler/cron"
+## License
 
-
-FEEDS INTEGRATION
---------------------------------------------------------------------------
-The module provides integration with the Feeds module [1]. In order to set
-scheduling dates for publishing or unpublishing imported content you can map the
-source date fields to the "Scheduler: publish on" and "Scheduler: unpublish on"
-targets. Make sure the source date fields are using formats that are compatible
-with the PHP strtotime() function [2]. If needed the date format can be altered
-by writing a custom FeedsProcessor plugin [3] or by using the Feeds Tamper
-module [4].
-
-[1] Feeds module: https://www.drupal.org/project/feeds
-[2] PHP strtotime() function: http://php.net/manual/en/function.strtotime.php
-[3] The developer's guide to Feeds: https://www.drupal.org/node/622700
-[4] Feeds Tamper module: https://www.drupal.org/project/feeds_tamper
+This project is GPL v2 software. See the [LICENSE.txt](https://github.com/backdrop-contrib/scheduler/blob/1.x-1.x/LICENSE.txt) 
+file in this directory for complete text.

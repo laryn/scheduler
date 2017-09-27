@@ -116,7 +116,7 @@ function _scheduler_form_alter(&$form, $form_state) {
   // Show the default time so users know what they will get if they do not
   // enter a time.
   if ($date_only_allowed) {
-    $default_time = strtotime(config_get('scheduler.settings','default_time'));
+    $default_time = strtotime(config_get('scheduler.settings','scheduler_default_time'));
     $descriptions['default'] = t('The default time is @default_time.', array(
       '@default_time' => format_date($default_time, 'custom', $time_only_format ? $time_only_format : SCHEDULER_TIME_ONLY_FORMAT),
     ));
