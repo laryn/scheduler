@@ -10,11 +10,11 @@ Dates can be entered either as plain text or with the core Date Popup widget.
 
  - Install this module and its dependencies using the official 
   [Backdrop CMS instructions](https://backdropcms.org/guide/modules)
- - Grant users the permission "Schedule content publication" so they can
-   set when the content they create are to be (un)published.
 
 ## Configuration and Usage
 
+ - Grant users the permission "Schedule content publication" to allow them to
+   set when the content they create is to be (un)published.
  - Checkboxes are provided when configuring content types, allowing you to
  enable scheduled publishing and/or unpublishing for that content type:
  ![Scheduler Configuration](https://github.com/backdrop-contrib/scheduler/blob/1.x-1.x/images/scheduler-content-type-configuration.jpg "Scheduler Configuration")
