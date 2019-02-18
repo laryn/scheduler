@@ -718,6 +718,7 @@ function scheduler_cron() {
   if (variable_get('scheduler_cache_clear_all', 0) && ($nodes_published || $nodes_unpublished)) {
     // Clear the page and block caches.
     cache_clear_all();
+    watchdog('scheduler', 'Page and block caches cleared.', array(), WATCHDOG_NOTICE, l(t('settings'), 'admin/config/content/scheduler'));
   }
 
   // Reset the static scheduler_cron flag.
