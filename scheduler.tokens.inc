@@ -44,13 +44,15 @@ function scheduler_tokens($type, $tokens, array $data = array(), array $options 
     // @see https://www.drupal.org/node/2750467
     $node = $data['node'];
     foreach (array('publish_on', 'unpublish_on') as $field) {
-      if (is_numeric($node->$field)) {
-        // We want the numeric value.
-        ${$field} = $node->$field;
-      }
-      elseif (!empty($node->$field)) {
-        // Convert the text to a numeric value.
-        ${$field} = _scheduler_strtotime($node->$field);
+      if (isset($node->$field)) {
+        if (is_numeric($node->$field)) {
+          // We want the numeric value.
+          ${$field} = $node->$field;
+        }
+        elseif (!empty($node->$field)) {
+          // Convert the text to a numeric value.
+          ${$field} = _scheduler_strtotime($node->$field);
+        }
       }
     }
 

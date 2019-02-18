@@ -762,12 +762,8 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
     $settings = array(
       'type' => 'page',
       'status' => FALSE,
-      'publish_on' => $publish_on_timestamp,
-      'unpublish_on' => $unpublish_on_timestamp,
     );
     $node = $this->drupalCreateNode($settings);
-    // Show that the node is scheduled.
-    $this->drupalGet('admin/config/content/scheduler/list');
 
     // Create array of test case data.
     $test_cases = array(
@@ -799,6 +795,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
       // viewing the test debug, becuase the tokens will not be replaced unless
       // a text format for tokens is added. That is unnecessary for the tests.
       $template = 'Publish on: [node:scheduler-publish' . $test_data['token_format'] . ']. Unpublish on: [node:scheduler-unpublish' . $test_data['token_format'] . '].';
+
       // With each of the test cases, test using both numeric and string input.
       foreach (array('numeric', 'string') as $test_data['input_type']) {
         if ($test_data['input_type'] == 'numeric') {
@@ -827,6 +824,13 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
         $tested_format = $test_data['token_format'] ? '"' . $test_data['token_format'] . '"' : 'default';
         $this->assertEqual($token_output, $expected_output, 'Scheduler tokens replaced correctly for ' . $tested_format . ' format with ' . $test_data['input_type'] . ' input data.');
       }
+
+      // Remove the scheduled dates and check that token replacment still works.
+      unset($node->publish_on);
+      unset($node->unpublish_on);
+      $token_output = token_replace($template, array('node' => $node));
+      $expected_output = 'Publish on: [node:scheduler-publish' . $test_data['token_format'] . ']. Unpublish on: [node:scheduler-unpublish' . $test_data['token_format'] . '].';
+      $this->assertEqual($token_output, $expected_output, 'Scheduler tokens replaced correctly for ' . $tested_format . ' format with no scheduled dates.');
     }
   }
 
