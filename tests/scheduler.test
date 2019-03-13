@@ -1009,10 +1009,14 @@ class SchedulerDateModuleTest extends SchedulerTestBase {
       // Test a number of supported date formats.
       'Y-m-d H:i' => TRUE,
       'd-m-Y h:ia' => TRUE,
+      'd m Y h:i a' => TRUE,
       'm-d-Y h:iA' => TRUE,
+      'm/d/Y h:i A' => TRUE,
       'n-j-y H:i:s' => TRUE,
       'Y/M/d h:i:sA' => TRUE,
+      'Y/M/d h:i:s A' => TRUE,
       'j F y h:i:sa' => TRUE,
+      'j F y h:i:s a' => TRUE,
 
       // Test a number of date formats with invalid time specifications.
       'y-m-d G:i' => FALSE,

@@ -141,8 +141,12 @@ function scheduler_admin_validate($form, &$form_state) {
     // The Date Popup function date_popup_time_formats() only returns the values
     // 'H:i:s' and 'h:i:sA' but Scheduler can accept more variations than just
     // these. Firstly, we add the lowercase 'a' alternative. Secondly timepicker
-    // always requires hours and minutes, but seconds are optional.
-    $acceptable = array('H:i:s', 'h:i:sA', 'h:i:sa', 'H:i', 'h:iA', 'h:ia');
+    // always requires hours and minutes, but seconds are optional. Spaces are
+    // allowed before the 'A' or 'a'.
+    $acceptable = array(
+      'H:i:s', 'h:i:sA', 'h:i:s A', 'h:i:sa', 'h:i:s a',
+      'H:i', 'h:iA', 'h:i A', 'h:ia', 'h:i a',
+    );
 
     if ($time_format && !in_array($time_format, $acceptable)) {
       form_set_error('scheduler_date_format', t('When using the Date Popup module, the allowed time formats are: !formats', array('!formats' => implode(', ', $acceptable))));
