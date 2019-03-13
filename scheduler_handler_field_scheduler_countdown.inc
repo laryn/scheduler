@@ -38,17 +38,17 @@ class SchedulerHandlerFieldSchedulerCountdown extends views_handler_field {
     $this->field_alias = $this->query->add_field(NULL, 'CASE WHEN (' . $time_field . ' > ' . REQUEST_TIME . ') THEN (' . $time_field . ' - ' . REQUEST_TIME . ') ELSE NULL END', $this->table_alias . '_' . $this->field);
   }
 
+  // @codingStandardsIgnoreStart
   /**
    * Define our display options and provide defaults.
    *
    * @return array
    *   An associative array containing the options.
    */
-  // @codingStandardsIgnoreStart
+  public function option_definition() {
   // The name fails Drupal.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
   // However, it is defined in Views module and cannot be corrected, hence we
   // need to ignore this fault and not report it.
-  public function option_definition() {
   // @codingStandardsIgnoreEnd
     $options = parent::option_definition();
     $options['countdown_display'] = array('default' => 'smart');
@@ -56,10 +56,10 @@ class SchedulerHandlerFieldSchedulerCountdown extends views_handler_field {
     return $options;
   }
 
+  // @codingStandardsIgnoreStart. Same as above.
   /**
    * Defines the form for the user to select the display options.
    */
-  // @codingStandardsIgnoreStart. Same as above.
   public function options_form(&$form, &$form_state) {
   // @codingStandardsIgnoreEnd
     parent::options_form($form, $form_state);

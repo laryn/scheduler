@@ -600,12 +600,11 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
     // Log in.
     $this->drupalLogin($this->adminUser);
 
-    /* 1. Test if it is possible to delete a node that does not have a
-    publication date set, when scheduled publishing is required, and likewise
-    for unpublishing.
-    @see https://drupal.org/node/1614880
-     */
-
+    // 1. Test if it is possible to delete a node that does not have a
+    // publication date set, when scheduled publishing is required, and likewise
+    // for unpublishing.
+    // @see https://drupal.org/node/1614880
+    //
     // Create a published and an unpublished node, both without scheduling.
     $published_node = $this->drupalCreateNode(array('type' => 'page', 'status' => 1));
     $unpublished_node = $this->drupalCreateNode(array('type' => 'page', 'status' => 0));
@@ -627,11 +626,10 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
     $this->assertNoText('Error message', 'No error messages are shown when trying to delete an unpublished node with no scheduling information.');
     $this->assertText('Are you sure you want to delete', 'The deletion warning message is shown immediately when trying to delete an unpublished node with no scheduling information.');
 
-    /* 2. Test that nodes can be deleted with no validation errors if the dates
-    are in the past.
-    @see http://drupal.org/node/2627370
-     */
-
+    // 2. Test that nodes can be deleted with no validation errors if the dates
+    // are in the past.
+    // @see http://drupal.org/node/2627370
+    //
     // Create nodes with publish_on and unpublish_on dates in the past.
     $values = array(
       'type' => 'page',

@@ -423,7 +423,12 @@ function _scheduler_lightweight_cron($form, &$form_state) {
   );
   if (isset($form_state['scheduler_generate_new_key'])) {
     $new_access_key = substr(md5(rand()), 0, 20);
+    // @codingStandardsIgnoreStart
+    // We have to use $form_state['input'] here as storing the new key in
+    // $form_state['values'] does not work. It is acceptable to use it on the
+    // left of an assignment even if PHPCS does not think so.
     $form_state['input']['scheduler_lightweight_access_key'] = $new_access_key;
+    // @codingStandardsIgnoreEnd
     drupal_set_message(t('A new random key has been generated but not saved. If you wish to use this, first "Save Configuration" to store the value, then modify your crontab job.'), 'warning');
   }
   $form['scheduler_cron_settings']['create_key'] = array(

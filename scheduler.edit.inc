@@ -27,7 +27,7 @@ function _scheduler_form_alter(&$form, $form_state) {
   // If this is a preview then get the values from the form, not the
   // database.
   if (isset($form_state['values']['op']) && $form_state['values']['op'] == t('Preview')) {
-    $defaults = new StdClass();
+    $defaults = new stdClass();
     $defaults->publish_on = $publishing_enabled ? $form_state['values']['publish_on'] : NULL;
     $defaults->unpublish_on = $unpublishing_enabled ? $form_state['values']['unpublish_on'] : NULL;
   }
@@ -40,7 +40,7 @@ function _scheduler_form_alter(&$form, $form_state) {
   }
   else {
     // Initialise standard values.
-    $defaults = new StdClass();
+    $defaults = new stdClass();
     // Respect presets added by functions like
     // scheduler_field_attach_prepare_translation_alter().
     $defaults->publish_on = isset($node->publish_on) ? $node->publish_on : NULL;
