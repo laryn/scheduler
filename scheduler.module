@@ -957,3 +957,12 @@ function scheduler_date_popup_pre_validate_alter($element, $form_state, &$input)
     $input['time'] = format_date($default_time, 'custom', variable_get('scheduler_time_only_format', SCHEDULER_TIME_ONLY_FORMAT));
   }
 }
+
+/**
+ * Internal function to add js 'theme' setting and return the js filename.
+ */
+function _scheduler_get_vertical_tabs_js() {
+  global $theme;
+  drupal_add_js(array('scheduler_vertical_tabs' => array('theme' => $theme)), array('type' => 'setting'));
+  return drupal_get_path('module', 'scheduler') . "/scheduler_vertical_tabs.js";
+}

@@ -86,7 +86,7 @@ function _scheduler_form_alter(&$form, $form_state) {
   // Add Scheduler settings to Vertical Tabs group and attach the javascript.
   if ($use_vertical_tabs) {
     $form['scheduler_settings']['#group'] = 'additional_settings';
-    $form['scheduler_settings']['#attached']['js'][] = drupal_get_path('module', 'scheduler') . '/scheduler_vertical_tabs.js';
+    $form['scheduler_settings']['#attached']['js'][] = _scheduler_get_vertical_tabs_js();
   }
 
   $extra_info = variable_get('scheduler_extra_info', '');

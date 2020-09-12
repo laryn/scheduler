@@ -251,7 +251,7 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
     '#group' => 'additional_settings',
     '#attached' => array(
       'js' => array(
-        'vertical-tabs' => drupal_get_path('module', 'scheduler') . "/scheduler_vertical_tabs.js",
+        'vertical-tabs' => _scheduler_get_vertical_tabs_js(),
       ),
     ),
   );
