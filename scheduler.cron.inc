@@ -42,6 +42,11 @@ function _scheduler_publish() {
   foreach ($nids as $nid) {
     $n = node_load($nid);
 
+    // Check that scheduled publishing is (still) enabled for this type.
+    if (!variable_get('scheduler_publish_enable_' . $n->type, 0)) {
+      continue;
+    }
+
     // Check that other modules allow the action on this node.
     if (!_scheduler_allow($n, $action)) {
       continue;
@@ -127,6 +132,11 @@ function _scheduler_unpublish() {
 
   foreach ($nids as $nid) {
     $n = node_load($nid);
+
+    // Check that scheduled publishing is (still) enabled for this type.
+    if (!variable_get('scheduler_unpublish_enable_' . $n->type, 0)) {
+      continue;
+    }
 
     // Check that other modules allow the action on this node.
     if (!_scheduler_allow($n, $action)) {

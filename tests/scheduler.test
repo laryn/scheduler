@@ -34,9 +34,10 @@ abstract class SchedulerTestBase extends DrupalWebTestCase {
     // Create an administrator user.
     // 'access site reports' is required for admin/reports/dblog.
     // 'administer site configuration' is required for admin/reports/status.
+    // 'access content overview' is required for admin/content.
     // 'view scheduled content' is required for admin/content/scheduler.
     $this->adminUser = $this->drupalCreateUser(array(
-      'access content',
+      'access content overview',
       'access site reports',
       'administer nodes',
       'administer scheduler',
@@ -549,6 +550,171 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
           break;
       }
     }
+  }
+
+  /**
+   * Test that Scheduler does not interfere with non-scheduler-enabled nodes.
+   */
+  public function testNonEnabledType() {
+    // Create a 'Non-enabled' content type.
+    $this->drupalCreateContentType(array('type' => 'story', 'name' => t('Story Book')));
+
+    // Create a user who can add and edit story content, and log in.
+    $this->drupalLogin($this->drupalCreateUser(array(
+      'access content overview',
+      'access site reports',
+      'create story content',
+      'delete own story content',
+      'edit own story content',
+      'schedule publishing of nodes',
+      'view scheduled content',
+      'view own unpublished content',
+    )));
+
+    foreach ($this->dataNonEnabledType() as list($id, $description, $publishing_enabled, $unpublishing_enabled)) {
+
+      // The first test case specifically checks the behavior of the default
+      // unchanged settings, so only change these settings for later runs.
+      if ($id > 0) {
+        variable_set('scheduler_publish_enable_story', $publishing_enabled);
+        variable_set('scheduler_unpublish_enable_story', $unpublishing_enabled);
+      }
+
+      // Create info string to show what combinations are being tested.
+      $info = 'Publishing ' . ($publishing_enabled ? 'enabled' : 'not enabled')
+        . ', Unpublishing ' . ($unpublishing_enabled ? 'enabled' : 'not enabled')
+        . ', ' . $description;
+
+      // Check that the field(s) are displayed only for the correct settings.
+      $title = $id . 'a - ' . $info;
+      $this->drupalGet('node/add/story');
+      if ($publishing_enabled) {
+        $this->assertFieldByName('publish_on', '', "The Publish-on field is shown: $title");
+      }
+      else {
+        $this->assertNoFieldByName('publish_on', '', "The Publish-on field is not shown: $title");
+      }
+
+      if ($unpublishing_enabled) {
+        $this->assertFieldByName('unpublish_on', '', "The Unpublish-on field is shown: $title");
+      }
+      else {
+        $this->assertNoFieldByName('unpublish_on', '', "The Unpublish-on field is not shown: $title");
+      }
+
+      // When publishing and/or unpublishing are not enabled but the 'required'
+      // setting remains on, the node must be able to be saved without a date.
+      variable_set('scheduler_publish_required_story', !$publishing_enabled);
+      variable_set('scheduler_unpublish_required_story', !$unpublishing_enabled);
+
+      $this->drupalPost('node/add/story', array('title' => $title), t('Save'));
+      // Check that the node has saved OK.
+      $string = sprintf('%s %s has been created.', 'Story Book', check_plain($title));
+      $this->assertText($string, "Node added: $title");
+
+      // Check that the node can be editted and saved again.
+      $node = $this->drupalGetNodeByTitle($title);
+      if ($node) {
+        $this->drupalPost('node/' . $node->nid . '/edit', array(), t('Save'));
+        $string = sprintf('%s %s has been updated.', 'Story Book', check_plain($title));
+        $this->assertText($string, "Node updated: $title");
+      }
+      else {
+        $this->fail("No node to edit: $title");
+      }
+
+      // Create an unpublished node with a publishing date, which mimics what
+      // could be done by a third-party module, or a by-product of the node type
+      // being enabled for publishing then being disabled before publishing.
+      $title = $id . 'b - ' . $info;
+      $edit = array(
+        'title' => $title,
+        'status' => FALSE,
+        'type' => 'story',
+        'publish_on' => strtotime('- 2 min', REQUEST_TIME),
+      );
+      $node = $this->drupalCreateNode($edit);
+
+      // Run cron and display the dblog.
+      $this->cronRun();
+      $this->drupalGet('admin/reports/dblog');
+
+      // Reload the node.
+      $node = node_load($node->nid, NULL, TRUE);
+      // Check if the node has been published or remains unpublished.
+      if ($publishing_enabled) {
+        $this->assertTrue($node->status, 'The unpublished node has been published: ' . $title);
+      }
+      else {
+        $this->assertFalse($node->status, 'The unpublished node remains unpublished: ' . $title);
+      }
+
+      // Do the same for unpublishing.
+      $title = $id . 'c - ' . $info;
+      $edit = array(
+        'title' => $title,
+        'status' => TRUE,
+        'type' => 'story',
+        'unpublish_on' => strtotime('- 2 min', REQUEST_TIME),
+      );
+      $node = $this->drupalCreateNode($edit);
+
+      // Run cron and display the dblog.
+      $this->cronRun();
+      $this->drupalGet('admin/reports/dblog');
+
+      // Reload the node.
+      $node = node_load($node->nid, NULL, TRUE);
+      // Check if the node has been unpublished or remains published.
+      if ($unpublishing_enabled) {
+        $this->assertFalse($node->status, 'The published node has been unpublished: ' . $title);
+      }
+      else {
+        $this->assertTrue($node->status, 'The published node remains published: ' . $title);
+      }
+
+      // Display the full content list and the scheduled list. Calls to these
+      // pages are for information and debug only. They could be removed.
+      $this->drupalGet('admin/content');
+      $this->drupalGet('admin/content/scheduler');
+
+    }
+
+  }
+
+  /**
+   * Provides data for testNonEnabledType().
+   *
+   * @return array
+   *   Each item in the test data array has the follow elements:
+   *     id                   - (in) a sequential id for use in node titles
+   *     description          - (string) describing the scenario being checked
+   *     publishing_enabled   - (bool) whether publishing is enabled
+   *     unpublishing_enabled - (bool) whether unpublishing is enabled
+   */
+  public function dataNonEnabledType() {
+    $data = [
+      // By default check that the scheduler date fields are not displayed.
+      0 => [0, 'Default', FALSE, FALSE],
+
+      // Explicitly disable this content type for both settings.
+      1 => [1, 'Disabling both settings', FALSE, FALSE],
+
+      // Turn on scheduled publishing only.
+      2 => [2, 'Enabling publishing only', TRUE, FALSE],
+
+      // Turn on scheduled unpublishing only.
+      3 => [3, 'Enabling unpublishing only', FALSE, TRUE],
+
+      // For completeness turn on bothbscheduled publishing and unpublishing.
+      4 => [4, 'Enabling both publishing and unpublishing', TRUE, TRUE],
+    ];
+
+    // Use unset($data[n]) to remove a temporarily unwanted item, use
+    // return [$data[n]] to selectively test just one item, or have the
+    // default return $data to test everything.
+    return $data;
+
   }
 
   /**

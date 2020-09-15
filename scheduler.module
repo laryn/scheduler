@@ -545,7 +545,10 @@ function scheduler_node_validate($node, $form, &$form_state) {
 
   // The unpublish-on 'required' form attribute may not be set, but in some
   // cases a value must still be entered.
-  if (variable_get('scheduler_unpublish_required_' . $node->type) && empty($node->unpublish_on)) {
+  if (variable_get('scheduler_unpublish_enable_' . $node->type)
+    && variable_get('scheduler_unpublish_required_' . $node->type)
+    && empty($node->unpublish_on)
+  ) {
     // ... when also setting a publish-on date.
     if (!empty($node->publish_on)) {
       form_set_error('unpublish_on', t("If you set a 'publish-on' date then you must also set an 'unpublish-on' date."));
