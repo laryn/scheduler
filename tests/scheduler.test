@@ -571,7 +571,8 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
       'view own unpublished content',
     )));
 
-    foreach ($this->dataNonEnabledType() as list($id, $description, $publishing_enabled, $unpublishing_enabled)) {
+    foreach ($this->dataNonEnabledType() as $data) {
+      list($id, $description, $publishing_enabled, $unpublishing_enabled) = $data;
 
       // The first test case specifically checks the behavior of the default
       // unchanged settings, so only change these settings for later runs.
