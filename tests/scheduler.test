@@ -694,25 +694,25 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    *     unpublishing_enabled - (bool) whether unpublishing is enabled
    */
   public function dataNonEnabledType() {
-    $data = [
+    $data = array(
       // By default check that the scheduler date fields are not displayed.
-      0 => [0, 'Default', FALSE, FALSE],
+      0 => array(0, 'Default', FALSE, FALSE),
 
       // Explicitly disable this content type for both settings.
-      1 => [1, 'Disabling both settings', FALSE, FALSE],
+      1 => array(1, 'Disabling both settings', FALSE, FALSE),
 
       // Turn on scheduled publishing only.
-      2 => [2, 'Enabling publishing only', TRUE, FALSE],
+      2 => array(2, 'Enabling publishing only', TRUE, FALSE),
 
       // Turn on scheduled unpublishing only.
-      3 => [3, 'Enabling unpublishing only', FALSE, TRUE],
+      3 => array(3, 'Enabling unpublishing only', FALSE, TRUE),
 
       // For completeness turn on bothbscheduled publishing and unpublishing.
-      4 => [4, 'Enabling both publishing and unpublishing', TRUE, TRUE],
-    ];
+      4 => array(4, 'Enabling both publishing and unpublishing', TRUE, TRUE),
+    );
 
     // Use unset($data[n]) to remove a temporarily unwanted item, use
-    // return [$data[n]] to selectively test just one item, or have the
+    // return array($data[n]) to selectively test just one item, or have the
     // default return $data to test everything.
     return $data;
 
