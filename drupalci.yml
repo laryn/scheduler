@@ -5,6 +5,7 @@ build:
       container_composer:
       phplint:
       phpcs:
+        sniff-all-files: false
       eslint:
       csslint:
     testing:
