@@ -5,17 +5,6 @@
  * Scheduler publishes and unpublishes nodes on dates specified by the user.
  */
 
-// The default format to use if no custom format has been configured.
-define('SCHEDULER_DATE_FORMAT', 'Y-m-d H:i:s');
-
-// The default date and time formats to use when only a date has been entered.
-// These should match the date and time parts of SCHEDULER_DATE_FORMAT above.
-define('SCHEDULER_DATE_ONLY_FORMAT', 'Y-m-d');
-define('SCHEDULER_TIME_ONLY_FORMAT', 'H:i:s');
-
-// The default time that will be used, until Admin sets a different value.
-define('SCHEDULER_DEFAULT_TIME', '00:00:00');
-
 // The full set of date and time letters allowed in the scheduler date format.
 define('SCHEDULER_DATE_LETTERS', 'djmnFMyY');
 define('SCHEDULER_TIME_LETTERS', 'hHgGisaA');
@@ -27,6 +16,17 @@ function scheduler_autoload_info() {
   return array(
     'SchedulerHandlerFieldSchedulerCountdown' => 'includes/scheduler_handler_field_scheduler_countdown.inc',
   );
+}
+
+/**
+ * Implements hook_config_info().
+ */
+function scheduler_config_info() {
+  $prefixes['scheduler.settings'] = array(
+    'label' => t('Scheduler settings'),
+    'group' => t('Configuration'),
+  );
+  return $prefixes;
 }
 
 /**
@@ -245,9 +245,10 @@ function _scheduler_allow($node, $action) {
  *   whitespace). FALSE if the given time string is malformed.
  */
 function _scheduler_strtotime($str) {
+  $config = config('scheduler.settings');
   if ($str && trim($str) != "") {
-    $date_format = variable_get('scheduler_date_format', SCHEDULER_DATE_FORMAT);
-    $date_only_format = variable_get('scheduler_date_only_format', SCHEDULER_DATE_ONLY_FORMAT);
+    $date_format = $config->get('scheduler_date_format');
+    $date_only_format = $config->get('scheduler_date_only_format');
 
     if (_scheduler_use_date_popup()) {
       // Date Popup currently returns the value into the $node using its default
@@ -266,15 +267,15 @@ function _scheduler_strtotime($str) {
     // If the time failed using the full $date_format or no time entry is
     // allowed, but date-only with a default time is enabled, check if the input
     // matches the "date only" date format.
-    $time_only_format = variable_get('scheduler_time_only_format', SCHEDULER_TIME_ONLY_FORMAT);
-    if ((!$time || $time_only_format == '') && variable_get('scheduler_allow_date_only', FALSE)) {
+    $time_only_format = $config->get('scheduler_time_only_format');
+    if ((!$time || $time_only_format == '') && $config->get('scheduler_allow_date_only')) {
       if ($time = _scheduler_strptime($str, $date_only_format)) {
         // A time has been calculated, but also check that there was only a
         // date entered and no extra mal-formed time elements.
         if ($str == date($date_only_format, $time)) {
           // Parse the default time string into elements, then add the total
           // offset in seconds to the timestamp.
-          $default_time = date_parse(variable_get('scheduler_default_time', SCHEDULER_DEFAULT_TIME));
+          $default_time = date_parse($config->get('scheduler_default_time'));
           $time_offset = ($default_time['hour'] * 3600) + ($default_time['minute'] * 60) + $default_time['second'];
           $time += $time_offset;
         }
@@ -441,8 +442,9 @@ function scheduler_node_load($nodes, $types) {
     //   node is either published or unpublished, probably it isn't or the
     //   'publish_on' property wouldn't be set in the first place. Remove this
     //   for the D8 version.
-    $row['published'] = $record->publish_on ? date(variable_get('date_format_long', 'l, F j, Y - H:i'), $record->publish_on) : NULL;
-    $row['unpublished'] = $record->unpublish_on ? date(variable_get('date_format_long', 'l, F j, Y - H:i'), $record->unpublish_on) : NULL;
+    $date_format = config_get('system.date', 'formats.medium.pattern');
+    $row['published'] = $record->publish_on ? date($date_format, $record->publish_on) : NULL;
+    $row['unpublished'] = $record->unpublish_on ? date($date_format, $record->unpublish_on) : NULL;
     // Add duplicates of the scheduling properties on $node->scheduler for
     // backwards compatibility with the D5 and D6 versions of Scheduler. Please
     // do not rely on these properties in new code, access them directly on
@@ -471,6 +473,7 @@ function scheduler_node_view($node, $view_mode, $langcode) {
  * Implements hook_node_validate().
  */
 function scheduler_node_validate($node, $form, &$form_state) {
+  $config = config('scheduler.settings');
   // Skip all validation when deleting the node. To check if the delete button
   // was clicked search for 'node_form_delete_submit' in the triggering_element
   // #submit array. This is better than checking for the text 'Delete'.
@@ -494,7 +497,7 @@ function scheduler_node_validate($node, $form, &$form_state) {
   // passed as an array this means we are using the Date Popup module and a
   // validation error has occurred. In this case we should skip validation as
   // it is being handled by Date Popup.
-  $date_format = variable_get('scheduler_date_format', SCHEDULER_DATE_FORMAT);
+  $date_format = $config->get('scheduler_date_format');
   $args = array('%time' => format_date(REQUEST_TIME, 'custom', $date_format));
 
   if (!empty($node->publish_on) && !is_numeric($node->publish_on) && !is_array($node->publish_on)) {
@@ -523,8 +526,8 @@ function scheduler_node_validate($node, $form, &$form_state) {
 
   // The unpublish-on 'required' form attribute may not be set, but in some
   // cases a value must still be entered.
-  if (variable_get('scheduler_unpublish_enable_' . $node->type)
-    && variable_get('scheduler_unpublish_required_' . $node->type)
+  if ($config->get('scheduler_unpublish_enable_' . $node->type)
+    && $config->get('scheduler_unpublish_required_' . $node->type)
     && empty($node->unpublish_on)
   ) {
     // ... when also setting a publish-on date.
@@ -542,6 +545,7 @@ function scheduler_node_validate($node, $form, &$form_state) {
  * Implements hook_node_presave().
  */
 function scheduler_node_presave($node) {
+  $config = config('scheduler.settings');
   foreach (array('publish_on', 'unpublish_on') as $key) {
     if (empty($node->$key) || is_array($node->$key)) {
       // Make sure publish_on and unpublish_on are not empty strings.
@@ -558,10 +562,10 @@ function scheduler_node_presave($node) {
     $publication_allowed = _scheduler_allow($node, 'publish');
 
     // Publish the node immediately if the publication date is in the past.
-    $publish_immediately = variable_get('scheduler_publish_past_date_' . $node->type, 'error') == 'publish';
+    $publish_immediately = $config->get('scheduler_publish_past_date_' . $node->type) == 'publish';
     if ($publication_allowed && $publish_immediately && $node->publish_on <= REQUEST_TIME) {
       // If required, set the created date to match published date.
-      if (variable_get('scheduler_publish_touch_' . $node->type, 0) == 1) {
+      if ($config->get('scheduler_publish_touch_' . $node->type) == 1) {
         $node->created = $node->publish_on;
       }
       $node->publish_on = 0;
@@ -577,7 +581,7 @@ function scheduler_node_presave($node) {
       // been prevented by other modules. Those modules have to display a
       // message themselves explaining why publication is denied.
       if ($publication_allowed) {
-        $date_format = variable_get('scheduler_date_format', SCHEDULER_DATE_FORMAT);
+        $date_format = $config->get('scheduler_date_format');
         backdrop_set_message(t('This post is unpublished and will be published @publish_time.', array(
           '@publish_time' => format_date($node->publish_on, 'custom', $date_format),
         )), 'status', FALSE);
@@ -669,6 +673,7 @@ function scheduler_node_type_delete($info) {
  * Implements hook_cron().
  */
 function scheduler_cron() {
+  $config = config('scheduler.settings');
   // Load the cron functions file.
   module_load_include('inc', 'scheduler', 'scheduler.cron');
 
@@ -696,7 +701,7 @@ function scheduler_cron() {
   // nodes were edited through the node edit form.
   $nodes_published = _scheduler_publish();
   $nodes_unpublished = _scheduler_unpublish();
-  if (variable_get('scheduler_cache_clear_all', 0) && ($nodes_published || $nodes_unpublished)) {
+  if ($config->get('scheduler_cache_clear_all') && ($nodes_published || $nodes_unpublished)) {
     // Clear the page and block caches.
     cache_clear_all();
     watchdog('scheduler', 'Page and block caches cleared.', array(), WATCHDOG_NOTICE, l(t('settings'), 'admin/config/content/scheduler'));
@@ -732,7 +737,7 @@ function scheduler_cron_is_running() {
  *   TRUE if the cron url key is correct. FALSE otherwise.
  */
 function _scheduler_cron_access($cron_key) {
-  $valid_cron_key = variable_get('scheduler_lightweight_access_key', '');
+  $valid_cron_key = config_get('scheduler.settings', 'scheduler_lightweight_access_key');
   return $valid_cron_key == $cron_key;
 }
 
@@ -780,9 +785,10 @@ function scheduler_field_extra_fields() {
   $fields = array();
 
   foreach (node_type_get_types() as $type) {
-    $publishing_enabled = variable_get('scheduler_publish_enable_' . $type->type, 0);
-    $unpublishing_enabled = variable_get('scheduler_unpublish_enable_' . $type->type, 0);
-    $use_vertical_tabs = variable_get('scheduler_use_vertical_tabs_' . $type->type, 1);
+    $config = config('scheduler.settings');
+    $publishing_enabled = $config->get('scheduler_publish_enable_' . $type->type);
+    $unpublishing_enabled = $config->get('scheduler_unpublish_enable_' . $type->type);
+    $use_vertical_tabs = $config->get('scheduler_use_vertical_tabs_' . $type->type);
 
     if (($publishing_enabled || $unpublishing_enabled) && !$use_vertical_tabs) {
       $fields['node'][$type->type]['form']['scheduler_settings'] = array(
@@ -804,7 +810,7 @@ function scheduler_field_extra_fields() {
  */
 function scheduler_preprocess_node(&$variables) {
   $node = $variables['node'];
-  $date_format = variable_get('scheduler_date_format', SCHEDULER_DATE_FORMAT);
+  $date_format = config_get('scheduler.settings', 'scheduler_date_format');
   if (!empty($node->publish_on) && $node->publish_on && is_numeric($node->publish_on)) {
     $variables['publish_on'] = format_date($node->publish_on, 'custom', $date_format);
   }
@@ -820,10 +826,11 @@ function scheduler_preprocess_node(&$variables) {
  * Feeds module.
  */
 function scheduler_feeds_processor_targets_alter(&$targets, $entity_type, $bundle_name) {
+  $config = config('scheduler.settings');
   // Scheduler module only works on nodes.
   if ($entity_type == 'node') {
-    $publishing_enabled = variable_get('scheduler_publish_enable_' . $bundle_name, 0);
-    $unpublishing_enabled = variable_get('scheduler_unpublish_enable_' . $bundle_name, 0);
+    $publishing_enabled = $config->get('scheduler_publish_enable_' . $bundle_name);
+    $unpublishing_enabled = $config->get('scheduler_unpublish_enable_' . $bundle_name);
 
     if ($publishing_enabled) {
       $targets['publish_on'] = array(
@@ -883,18 +890,19 @@ function scheduler_ctools_plugin_directory($owner, $plugin_type) {
  * Implements hook_i18n_sync_options().
  */
 function scheduler_i18n_sync_options($entity_type, $bundle_name) {
+  $config = config('scheduler.settings');
   // Keep the scheduler dates synchronised between separate nodes which have
   // been defined as translations of each other.
   if ($entity_type == 'node') {
     $options = array();
     // $bundle_name holds the content_type.
-    if (variable_get('scheduler_publish_enable_' . $bundle_name, 0)) {
+    if ($config->get('scheduler_publish_enable_' . $bundle_name)) {
       $options['publish_on'] = array(
         'title' => t('Publish on'),
         'description' => t('Scheduler Publish date and time'),
       );
     }
-    if (variable_get('scheduler_unpublish_enable_' . $bundle_name, 0)) {
+    if ($config->get('scheduler_unpublish_enable_' . $bundle_name)) {
       $options['unpublish_on'] = array(
         'title' => t('Unpublish on'),
         'description' => t('Scheduler Unpublish date and time'),
@@ -924,12 +932,13 @@ function scheduler_field_attach_prepare_translation_alter($entity, $context) {
  * Implements hook_date_popup_pre_validate_alter().
  */
 function scheduler_date_popup_pre_validate_alter($element, $form_state, &$input) {
+  $config = config('scheduler.settings');
   // Provide a default time if this is enabled and the time field is empty.
-  if (variable_get('scheduler_allow_date_only', FALSE) && $element['#array_parents'][0] == 'scheduler_settings' && !empty($input['date']) && empty($input['time'])) {
+  if ($config->get('scheduler_allow_date_only') && $element['#array_parents'][0] == 'scheduler_settings' && !empty($input['date']) && empty($input['time'])) {
     // Get the default time as a timestamp number.
-    $default_time = strtotime(variable_get('scheduler_default_time', SCHEDULER_DEFAULT_TIME));
+    $default_time = strtotime($config->get('scheduler_default_time'));
     // Set the time in the required format just as if the user had typed it.
-    $input['time'] = format_date($default_time, 'custom', variable_get('scheduler_time_only_format', SCHEDULER_TIME_ONLY_FORMAT));
+    $input['time'] = format_date($default_time, 'custom', $config->get('scheduler_time_only_format'));
   }
 }
 

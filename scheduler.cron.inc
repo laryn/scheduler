@@ -15,6 +15,7 @@
  *   TRUE if any node has been published, FALSE otherwise.
  */
 function _scheduler_publish() {
+  $config = config('scheduler.settings');
   $result = FALSE;
 
   // If the time now is greater than the time to publish a node, publish it.
@@ -43,7 +44,7 @@ function _scheduler_publish() {
     $n = node_load($nid);
 
     // Check that scheduled publishing is (still) enabled for this type.
-    if (!variable_get('scheduler_publish_enable_' . $n->type, 0)) {
+    if (!$config->get('scheduler_publish_enable_' . $n->type)) {
       continue;
     }
 
@@ -55,11 +56,11 @@ function _scheduler_publish() {
     // Update timestamps.
     $n->changed = $n->publish_on;
     $old_creation_date = $n->created;
-    if (variable_get('scheduler_publish_touch_' . $n->type, 0) == 1) {
+    if ($config->get('scheduler_publish_touch_' . $n->type) == 1) {
       $n->created = $n->publish_on;
     }
 
-    $create_publishing_revision = variable_get('scheduler_publish_revision_' . $n->type, 0) == 1;
+    $create_publishing_revision = $config->get('scheduler_publish_revision_' . $n->type) == 1;
     if ($create_publishing_revision) {
       $n->revision = TRUE;
       // Use a core date format to guarantee a time is included.
@@ -108,6 +109,7 @@ function _scheduler_publish() {
  *   TRUE is any node has been unpublished, FALSE otherwise.
  */
 function _scheduler_unpublish() {
+  $config = config('scheduler.settings');
   $result = FALSE;
 
   // If the time is greater than the time to unpublish a node, unpublish it.
@@ -136,7 +138,7 @@ function _scheduler_unpublish() {
     $n = node_load($nid);
 
     // Check that scheduled publishing is (still) enabled for this type.
-    if (!variable_get('scheduler_unpublish_enable_' . $n->type, 0)) {
+    if (!$config->get('scheduler_unpublish_enable_' . $n->type)) {
       continue;
     }
 
@@ -156,7 +158,7 @@ function _scheduler_unpublish() {
     $old_change_date = $n->changed;
     $n->changed = $n->unpublish_on;
 
-    $create_unpublishing_revision = variable_get('scheduler_unpublish_revision_' . $n->type, 0) == 1;
+    $create_unpublishing_revision = $config->get('scheduler_unpublish_revision_' . $n->type) == 1;
     if ($create_unpublishing_revision) {
       $n->revision = TRUE;
       // Use a core date format to guarantee a time is included.
@@ -230,7 +232,7 @@ function _scheduler_scheduler_nid_list($action) {
  * /admin/config/content/scheduler/cron.
  */
 function _scheduler_run_cron() {
-  $log = variable_get('scheduler_lightweight_log', 1);
+  $log = config_get('scheduler.settings', 'scheduler_lightweight_log');
   if ($log) {
     watchdog('scheduler', 'Lightweight cron run activated', array(), WATCHDOG_NOTICE);
   }

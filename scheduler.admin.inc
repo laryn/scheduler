@@ -82,8 +82,8 @@ function scheduler_admin() {
     '#prefix' => '<label>' . t('Cache') . '</label>',
     '#type' => 'checkbox',
     '#title' => t('Clear all expired block and page caches after publishing or unpublishing via cron.'),
-    '#default_value' => variable_get('scheduler_cache_clear_all', 0),
-    '#description' => t('If a node has been published or unpublished by Scheduler during a cron run, this option will clear the caches instead of relying on the Drupal core system cron task. Warning: This may have a detrimental effect on performance for large sites.'),
+    '#default_value' => $config->get('scheduler_cache_clear_all'),
+    '#description' => t('If a node has been published or unpublished by Scheduler during a cron run, this option will clear the caches instead of relying on the Backdrop system cron task. Warning: This may have a detrimental effect on performance for large sites.'),
   );
 
   // Add a submit handler function.

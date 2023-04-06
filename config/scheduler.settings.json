@@ -1,0 +1,13 @@
+{
+  "_config_name": "scheduler.settings",
+  "scheduler_allow_date_only": 0,
+  "scheduler_cache_clear_all": 0,
+  "scheduler_date_format": "Y-m-d H:i:s",
+  "scheduler_date_only_format": "Y-m-d",
+  "scheduler_default_time": "00:00:00",
+  "scheduler_extra_info": "",
+  "scheduler_field_type": "date_popup",
+  "scheduler_lightweight_access_key": "",
+  "scheduler_lightweight_log": "",
+  "scheduler_time_only_format": "H:i:s"
+}
