@@ -156,11 +156,6 @@ function scheduler_admin_validate($form, &$form_state) {
  */
 function scheduler_admin_submit($form, &$form_state) {
   $config = config('scheduler.settings');
-  // For the minute increment, change a blank value to 1. Date popup does not
-  // support blank values.
-  if (empty($form_state['values']['scheduler_date_popup_minute_increment'])) {
-    $form_state['values']['scheduler_date_popup_minute_increment'] = 1;
-  }
 
   // Extract the date part and time part of the full format, for use with the
   // default time functionality. Assume the date and time time parts begin and
@@ -174,7 +169,6 @@ function scheduler_admin_submit($form, &$form_state) {
 
   //Save config.
   $config->set('scheduler_date_format',$format);
-  $config->set('scheduler_date_popup_minute_increment', $form_state['values']['date_popup_minute_increment']);
   $config->set('scheduler_field_type', $form_state['values']['field_type']);
   $config->set('scheduler_allow_date_only', $form_state['values']['allow_date_only']);
   $config->set('scheduler_default_time', $form_state['values']['default_time']);
