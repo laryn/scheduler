@@ -41,6 +41,11 @@ class SchedulerHandlerFieldSchedulerCountdown extends views_handler_field {
   /**
    * Define our display options and provide defaults.
    *
+   * The name of this function fails the coding standard sniff
+   * Drupal.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
+   * However, the name is defined in Views module and has to match that, hence
+   * we need to ignore this fault and not report it.
+   *
    * @return array
    *   An associative array containing the options.
    */
@@ -59,7 +64,7 @@ class SchedulerHandlerFieldSchedulerCountdown extends views_handler_field {
   /**
    * Defines the form for the user to select the display options.
    */
-  // @codingStandardsIgnoreStart. Same as above.
+  // @codingStandardsIgnoreStart
   public function options_form(&$form, &$form_state) {
   // @codingStandardsIgnoreEnd
     parent::options_form($form, $form_state);

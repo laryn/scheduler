@@ -78,6 +78,14 @@ function scheduler_admin() {
     '#description' => t('The text entered into this field will be displayed above the scheduling fields in the node edit form.'),
   );
 
+  $form['scheduler_cache_clear_all'] = array(
+    '#prefix' => '<label>' . t('Cache') . '</label>',
+    '#type' => 'checkbox',
+    '#title' => t('Clear all expired block and page caches after publishing or unpublishing via cron.'),
+    '#default_value' => variable_get('scheduler_cache_clear_all', 0),
+    '#description' => t('If a node has been published or unpublished by Scheduler during a cron run, this option will clear the caches instead of relying on the Drupal core system cron task. Warning: This may have a detrimental effect on performance for large sites.'),
+  );
+
   // Add a submit handler function.
   $form['#submit'][] = 'scheduler_admin_submit';
 
@@ -110,8 +118,12 @@ function scheduler_admin_validate($form, &$form_state) {
     // The Date Popup function date_popup_time_formats() only returns the values
     // 'H:i:s' and 'h:i:sA' but Scheduler can accept more variations than just
     // these. Firstly, we add the lowercase 'a' alternative. Secondly timepicker
-    // always requires hours and minutes, but seconds are optional.
-    $acceptable = array('H:i:s', 'h:i:sA', 'h:i:sa', 'H:i', 'h:iA', 'h:ia');
+    // always requires hours and minutes, but seconds are optional. Spaces are
+    // allowed before the 'A' or 'a'.
+    $acceptable = array(
+      'H:i:s', 'h:i:sA', 'h:i:s A', 'h:i:sa', 'h:i:s a',
+      'H:i', 'h:iA', 'h:i A', 'h:ia', 'h:i a',
+    );
 
     if ($time_format && !in_array($time_format, $acceptable)) {
       form_set_error('date_format', t('When using the Date Popup module, the allowed time formats are: !formats', array('!formats' => implode(', ', $acceptable))));
@@ -159,7 +171,7 @@ function scheduler_admin_submit($form, &$form_state) {
 
   $date_only_format = scheduler_get_date_only_format($format);
   $config->set('scheduler_date_only_format', $date_only_format);
-  
+
   //Save config.
   $config->set('scheduler_date_format',$format);
   $config->set('scheduler_date_popup_minute_increment', $form_state['values']['date_popup_minute_increment']);
@@ -170,10 +182,15 @@ function scheduler_admin_submit($form, &$form_state) {
   $config->save();
 
   if (empty($time_only_format)) {
-    backdrop_set_message(t('The date part of the Scheduler format is %date_part. There is no time part', array('%date_part' => $date_only_format)));
+    backdrop_set_message(t('The date part of the Scheduler format is %date_part. There is no time part', array(
+      '%date_part' => $date_only_format,
+    )));
   }
   else {
-    backdrop_set_message(t('The date part of the Scheduler format is %date_part and the time part is %time_part.', array('%date_part' => $date_only_format, '%time_part' => $time_only_format)));
+    backdrop_set_message(t('The date part of the Scheduler format is %date_part and the time part is %time_part.', array(
+      '%date_part' => $date_only_format,
+      '%time_part' => $time_only_format,
+    )));
   }
 }
 
@@ -431,7 +448,12 @@ function _scheduler_lightweight_cron($form, &$form_state) {
   );
   if (isset($form_state['scheduler_generate_new_key'])) {
     $new_access_key = substr(md5(rand()), 0, 20);
+    // @codingStandardsIgnoreStart
+    // We have to use $form_state['input'] here as storing the new key in
+    // $form_state['values'] does not work. It is acceptable to use it on the
+    // left of an assignment even if PHPCS does not think so.
     $form_state['input']['scheduler_lightweight_access_key'] = $new_access_key;
+    // @codingStandardsIgnoreEnd
     backdrop_set_message(t('A new random key has been generated but not saved. If you wish to use this, first "Save Configuration" to store the value, then modify your crontab job.'), 'warning');
   }
   $form['scheduler_cron_settings']['create_key'] = array(

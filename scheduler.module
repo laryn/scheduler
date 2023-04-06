@@ -412,11 +412,14 @@ function _scheduler_strptime($date, $format) {
     }
     $index++;
   }
-  if ((strncasecmp($results['meridiem'], "pm", 2) == 0) && ($results['hour'] < 12)) {
-    $results['hour'] += 12;
-  }
-  if ((strncasecmp($results['meridiem'], "am", 2) == 0) && ($results['hour'] == 12)) {
-    $results['hour'] -= 12;
+
+  if ($results['meridiem'] !== NULL) {
+    if ((strncasecmp($results['meridiem'], "pm", 2) == 0) && ($results['hour'] < 12)) {
+      $results['hour'] += 12;
+    }
+    if ((strncasecmp($results['meridiem'], "am", 2) == 0) && ($results['hour'] == 12)) {
+      $results['hour'] -= 12;
+    }
   }
 
   $time = mktime($results['hour'], $results['minute'], $results['second'], $results['month'], $results['day'], $results['year']);
@@ -520,7 +523,10 @@ function scheduler_node_validate($node, $form, &$form_state) {
 
   // The unpublish-on 'required' form attribute may not be set, but in some
   // cases a value must still be entered.
-  if (variable_get('scheduler_unpublish_required_' . $node->type) && empty($node->unpublish_on)) {
+  if (variable_get('scheduler_unpublish_enable_' . $node->type)
+    && variable_get('scheduler_unpublish_required_' . $node->type)
+    && empty($node->unpublish_on)
+  ) {
     // ... when also setting a publish-on date.
     if (!empty($node->publish_on)) {
       form_set_error('unpublish_on', t("If you set a 'publish-on' date then you must also set an 'unpublish-on' date."));
@@ -693,6 +699,7 @@ function scheduler_cron() {
   if (variable_get('scheduler_cache_clear_all', 0) && ($nodes_published || $nodes_unpublished)) {
     // Clear the page and block caches.
     cache_clear_all();
+    watchdog('scheduler', 'Page and block caches cleared.', array(), WATCHDOG_NOTICE, l(t('settings'), 'admin/config/content/scheduler'));
   }
 
   // Reset the static scheduler_cron flag.
@@ -847,14 +854,8 @@ function scheduler_feeds_set_target($source, $entity, $target, $value, $mapping)
   // then strtotime() must not be used, otherwise it returns the current time.
   if (!empty($value) && !is_numeric($value)) {
     if (!$timestamp = strtotime($value)) {
-      throw new FeedsValidationException(
-        // Throw an exception if the date format was not recognized.
-        t('Value %value for @source could not be converted to a valid %target date.', array(
-          '@source' => $mapping['source'],
-          '%value' => $value,
-          '%target' => $target,
-        )
-      ));
+      // Throw an exception if the date format was not recognized.
+      throw new FeedsValidationException("Value $value for {$mapping['source']} could not be converted to a valid Scheduler $target date.");
     }
   }
   else {
@@ -930,4 +931,13 @@ function scheduler_date_popup_pre_validate_alter($element, $form_state, &$input)
     // Set the time in the required format just as if the user had typed it.
     $input['time'] = format_date($default_time, 'custom', variable_get('scheduler_time_only_format', SCHEDULER_TIME_ONLY_FORMAT));
   }
+}
+
+/**
+ * Internal function to add js 'theme' setting and return the js filename.
+ */
+function _scheduler_get_vertical_tabs_js() {
+  global $theme;
+  drupal_add_js(array('scheduler_vertical_tabs' => array('theme' => $theme)), array('type' => 'setting'));
+  return drupal_get_path('module', 'scheduler') . "/scheduler_vertical_tabs.js";
 }
