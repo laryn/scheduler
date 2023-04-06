@@ -27,7 +27,7 @@ function scheduler_token_info() {
  * Implements hook_tokens().
  */
 function scheduler_tokens($type, $tokens, array $data = array(), array $options = array()) {
-  $language_code = isset($options['language']) ? $options['language']->language : NULL;
+  $language_code = isset($options['language']) ? $options['language']->langcode : NULL;
   $replacements = array();
 
   if ($type == 'node' && !empty($data['node'])) {
