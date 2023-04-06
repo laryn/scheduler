@@ -167,12 +167,13 @@ function scheduler_admin_submit($form, &$form_state) {
   $date_only_format = scheduler_get_date_only_format($format);
   $config->set('scheduler_date_only_format', $date_only_format);
 
-  //Save config.
+  // Save config.
   $config->set('scheduler_date_format',$format);
   $config->set('scheduler_field_type', $form_state['values']['field_type']);
   $config->set('scheduler_allow_date_only', $form_state['values']['allow_date_only']);
   $config->set('scheduler_default_time', $form_state['values']['default_time']);
   $config->set('scheduler_extra_info', $form_state['values']['extra_info']);
+  $config->set('scheduler_cache_clear_all', $form_state['values']['scheduler_cache_clear_all']);
   $config->save();
 
   if (empty($time_only_format)) {
@@ -253,12 +254,12 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
   $form['scheduler']['publish']['scheduler_publish_enable'] = array(
     '#type' => 'checkbox',
     '#title' => t('Enable scheduled publishing for this content type'),
-    '#default_value' => $config->get('settings.scheduler_publish_enable'),
+    '#default_value' => $config->get('scheduler_publish_enable'),
   );
   $form['scheduler']['publish']['scheduler_publish_touch'] = array(
     '#type' => 'checkbox',
     '#title' => t('Change content creation time to match the scheduled publish time'),
-    '#default_value' => $config->get('settings.scheduler_publish_touch'),
+    '#default_value' => $config->get('scheduler_publish_touch'),
     '#states' => array(
       'visible' => array(
         ':input[name="scheduler_publish_enable"]' => array('checked' => TRUE),
@@ -268,7 +269,7 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
   $form['scheduler']['publish']['scheduler_publish_required'] = array(
     '#type' => 'checkbox',
     '#title' => t('Require scheduled publishing'),
-    '#default_value' => $config->get('settings.scheduler_publish_required'),
+    '#default_value' => $config->get('scheduler_publish_required'),
     '#states' => array(
       'visible' => array(
         ':input[name="scheduler_publish_enable"]' => array('checked' => TRUE),
@@ -278,7 +279,7 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
   $form['scheduler']['publish']['scheduler_publish_revision'] = array(
     '#type' => 'checkbox',
     '#title' => t('Create a new revision on publishing'),
-    '#default_value' => $config->get('settings.scheduler_publish_revision'),
+    '#default_value' => $config->get('scheduler_publish_revision'),
     '#states' => array(
       'visible' => array(
         ':input[name="scheduler_publish_enable"]' => array('checked' => TRUE),
@@ -299,7 +300,7 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
   $form['scheduler']['publish']['advanced']['scheduler_publish_past_date'] = array(
     '#type' => 'radios',
     '#title' => t('Action to be taken for publication dates in the past'),
-    '#default_value' => $config->get('settings.scheduler_publish_past_date'),
+    '#default_value' => $config->get('scheduler_publish_past_date'),
     '#options' => array(
       'error' => t('Display an error message - do not allow dates in the past'),
       'publish' => t('Publish the content immediately after saving'),
@@ -316,12 +317,12 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
   $form['scheduler']['unpublish']['scheduler_unpublish_enable'] = array(
     '#type' => 'checkbox',
     '#title' => t('Enable scheduled unpublishing for this content type'),
-    '#default_value' => $config->get('settings.scheduler_unpublish_enable'),
+    '#default_value' => $config->get('scheduler_unpublish_enable'),
   );
   $form['scheduler']['unpublish']['scheduler_unpublish_required'] = array(
     '#type' => 'checkbox',
     '#title' => t('Require scheduled unpublishing'),
-    '#default_value' => $config->get('settings.scheduler_unpublish_required'),
+    '#default_value' => $config->get('scheduler_unpublish_required'),
     '#states' => array(
       'visible' => array(
         ':input[name="scheduler_unpublish_enable"]' => array('checked' => TRUE),
@@ -331,7 +332,7 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
   $form['scheduler']['unpublish']['scheduler_unpublish_revision'] = array(
     '#type' => 'checkbox',
     '#title' => t('Create a new revision on unpublishing'),
-    '#default_value' => $config->get('settings.scheduler_unpublish_revision'),
+    '#default_value' => $config->get('scheduler_unpublish_revision'),
     '#states' => array(
       'visible' => array(
         ':input[name="scheduler_unpublish_enable"]' => array('checked' => TRUE),
@@ -359,7 +360,7 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
   $form['scheduler']['node_edit_layout']['scheduler_use_vertical_tabs'] = array(
     '#type' => 'radios',
     '#title' => t('Display scheduling options as'),
-    '#default_value' => $config->get('settings.scheduler_use_vertical_tabs'),
+    '#default_value' => $config->get('scheduler_use_vertical_tabs'),
     '#options' => array(
       1 => t('Vertical tab'),
       0 => t('Separate fieldset'),
@@ -369,7 +370,7 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
   $form['scheduler']['node_edit_layout']['scheduler_expand_fieldset'] = array(
     '#type' => 'radios',
     '#title' => t('Expand fieldset'),
-    '#default_value' => $config->get('settings.scheduler_expand_fieldset'),
+    '#default_value' => $config->get('scheduler_expand_fieldset'),
     '#options' => array(
       0 => t('Expand only when a scheduled date exists or when a date is required'),
       1 => t('Always open the fieldset, even if no dates exist'),
@@ -389,16 +390,16 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
 
 function _scheduler_form_node_type_form_submit($form, &$form_state) {
   $config = config('node.type.' . $form['#node_type']->type);
-  $config->set('settings.scheduler_publish_enable',$form_state['values']['scheduler_publish_enable']);
-  $config->set('settings.scheduler_expand_fieldset',$form_state['values']['scheduler_expand_fieldset']);
-  $config->set('settings.scheduler_use_vertical_tabs',$form_state['values']['scheduler_use_vertical_tabs']);
-  $config->set('settings.scheduler_unpublish_revision',$form_state['values']['scheduler_unpublish_revision']);
-  $config->set('settings.scheduler_unpublish_required',$form_state['values']['scheduler_unpublish_required']);
-  $config->set('settings.scheduler_unpublish_enable',$form_state['values']['scheduler_unpublish_enable']);
-  $config->set('settings.scheduler_publish_past_date',$form_state['values']['scheduler_publish_past_date']);
-  $config->set('settings.scheduler_publish_revision',$form_state['values']['scheduler_publish_revision']);
-  $config->set('settings.scheduler_publish_required',$form_state['values']['scheduler_publish_required']);
-  $config->set('settings.scheduler_publish_touch',$form_state['values']['scheduler_publish_touch']);
+  $config->set('scheduler_publish_enable',$form_state['values']['scheduler_publish_enable']);
+  $config->set('scheduler_expand_fieldset',$form_state['values']['scheduler_expand_fieldset']);
+  $config->set('scheduler_use_vertical_tabs',$form_state['values']['scheduler_use_vertical_tabs']);
+  $config->set('scheduler_unpublish_revision',$form_state['values']['scheduler_unpublish_revision']);
+  $config->set('scheduler_unpublish_required',$form_state['values']['scheduler_unpublish_required']);
+  $config->set('scheduler_unpublish_enable',$form_state['values']['scheduler_unpublish_enable']);
+  $config->set('scheduler_publish_past_date',$form_state['values']['scheduler_publish_past_date']);
+  $config->set('scheduler_publish_revision',$form_state['values']['scheduler_publish_revision']);
+  $config->set('scheduler_publish_required',$form_state['values']['scheduler_publish_required']);
+  $config->set('scheduler_publish_touch',$form_state['values']['scheduler_publish_touch']);
   $config->save();
 }
 
@@ -410,6 +411,7 @@ function _scheduler_lightweight_cron($form, &$form_state) {
   $config = config('scheduler.settings');
   $form = array();
   $prefix_text = t("You can test Scheduler's lightweight cron process interactively");
+  $form['#config'] = 'scheduler.settings';
   $form['scheduler_cron'] = array(
     '#type' => 'submit',
     '#prefix' => '<div class="container-inline">' . $prefix_text . ': ',
@@ -424,20 +426,14 @@ function _scheduler_lightweight_cron($form, &$form_state) {
   $form['scheduler_cron_settings']['scheduler_lightweight_log'] = array(
     '#type' => 'checkbox',
     '#title' => t('Log every activation and completion message.'),
-    '#default_value' => $config->get('settings.scheduler_lightweight_log'),
+    '#default_value' => $config->get('scheduler_lightweight_log'),
     '#description' => t("When this option is checked, Scheduler will write an entry to the log every time the lightweight cron process is started and completed. This is useful during set up and testing, but can result in a large number of log entries. Any actions performed during the lightweight cron run will always be logged regardless of this setting."),
-  );
-  $form['scheduler_cron_settings']['scheduler_cache_clear_all'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Clear all expired block and page caches after publishing or unpublishing via cron.'),
-    '#default_value' => $config->get('settings.scheduler_cache_clear_all'),
-    '#description' => t('If content has been published or unpublished by Scheduler during a cron run, this option will clear the caches instead of relying on the Backdrop core system cron task. Warning: This may have a detrimental effect on performance for large sites.'),
   );
   $form['scheduler_cron_settings']['scheduler_lightweight_access_key'] = array(
     '#type' => 'textfield',
     '#title' => t('Lightweight cron access key'),
     '#size' => 100,
-    '#default_value' => $config->get('settings.scheduler_lightweight_access_key'),
+    '#default_value' => $config->get('scheduler_lightweight_access_key'),
     '#description' => t("Similar to Backdrop's cron key this acts as a security token to prevent unauthorised calls to scheduler/cron. The key should be passed as scheduler/cron/&lt;this key&gt;. To disable security for lightweight cron leave this field blank."),
   );
   if (isset($form_state['scheduler_generate_new_key'])) {
