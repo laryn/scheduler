@@ -171,7 +171,7 @@ function scheduler_list_access_callback($uid = NULL) {
  *   TRUE if we are using date_popup. FALSE otherwise.
  */
 function _scheduler_use_date_popup() {
-  return (module_exists('date') && config_get('scheduler.settings','scheduler_field_type') == 'date_popup');
+  return (module_exists('date') && config_get('scheduler.settings', 'scheduler_field_type') == 'date_popup');
 }
 
 /**
@@ -189,7 +189,7 @@ function scheduler_form_node_type_form_alter(&$form, $form_state) {
 function scheduler_form_alter(&$form, $form_state) {
   // Load the real code only when needed. First check if this a node form and
   // that the user has permission to use Scheduler.
-  if (in_array('node-form', $form['#attributes']['class']) && user_access('schedule publishing of nodes')) {
+  if (!empty($form['#attributes']['class']) && in_array('node-form', $form['#attributes']['class']) && user_access('schedule publishing of nodes')) {
     // Check if scheduling has been enabled for this node type.
     $publishing_enabled = config_get('node.type.' . $form['type']['#value'], 'settings.scheduler_publish_enable') == 1;
     $unpublishing_enabled = config_get('node.type.' . $form['type']['#value'], 'settings.scheduler_unpublish_enable') == 1;
