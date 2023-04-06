@@ -44,7 +44,7 @@ function scheduler_tokens($type, $tokens, array $data = array(), array $options 
     // @see https://www.drupal.org/node/2750467
     $node = $data['node'];
     foreach (array('publish_on', 'unpublish_on') as $field) {
-      if (is_numeric($node->$field)) {
+      if (!empty($node->$field) && is_numeric($node->$field)) {
         // We want the numeric value.
         ${$field} = $node->$field;
       }
