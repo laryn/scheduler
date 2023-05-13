@@ -17,8 +17,8 @@ function _scheduler_form_alter(&$form, $form_state) {
   $form['#config'] = 'node.type.' . $form['type']['#value'];
   $config = config('node.type.' . $form['type']['#value']);
   $scheduler_config = config('scheduler.settings');
-  $publishing_enabled = $config->get('settings.scheduler_publish_enable') == 1;
-  $unpublishing_enabled = $config->get('settings.scheduler_unpublish_enable') == 1;
+  $publishing_enabled = $config->get('scheduler_publish_enable') == 1;
+  $unpublishing_enabled = $config->get('scheduler_unpublish_enable') == 1;
   $date_format = $scheduler_config->get('scheduler_date_format');
   $date_only_format = $scheduler_config->get('scheduler_date_only_format');
   $time_only_format = $scheduler_config->get('scheduler_time_only_format');
@@ -60,22 +60,22 @@ function _scheduler_form_alter(&$form, $form_state) {
 
   // A publish_on date is required if the content type option is set and the
   // node is being created or it currently has a scheduled publishing date.
-  $publishing_required = $config->get('settings.scheduler_publish_required') == 1
+  $publishing_required = $config->get('scheduler_publish_required') == 1
     && (empty($node->nid) || ($node->status == 0 && !empty($node->publish_on)));
 
   // An unpublish_on date is required if the content type option is set and
   // the node is being created or the current status is published or the
   // node is scheduled to be published.
-  $unpublishing_required = $config->get('settings.scheduler_unpublish_required') == 1
+  $unpublishing_required = $config->get('scheduler_unpublish_required') == 1
     && (empty($node->nid) || $node->status == 1 || !empty($node->publish_on));
 
-  $use_vertical_tabs = $config->get('settings.scheduler_use_vertical_tabs');
+  $use_vertical_tabs = $config->get('scheduler_use_vertical_tabs');
   $fieldset_extended = (
     (isset($defaults->publish_on) && $defaults->publish_on != 0)
     || (isset($defaults->unpublish_on) && $defaults->unpublish_on != 0)
     || $publishing_required
     || $unpublishing_required
-    || $config->get('settings.scheduler_expand_fieldset')
+    || $config->get('scheduler_expand_fieldset')
   );
 
   $form['scheduler_settings'] = array(
@@ -127,30 +127,42 @@ function _scheduler_form_alter(&$form, $form_state) {
       $descriptions['blank'] = t('Leave the date blank for no scheduled publishing.');
     }
 
-    $form['scheduler_settings']['publish_on'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Publish on'),
-      '#maxlength' => 30,
-      '#required' => $publishing_required,
-      '#default_value' => isset($defaults->publish_on) && $defaults->publish_on ? format_date($defaults->publish_on, 'custom', $internal_date_format) : '',
-      '#description' => filter_xss(implode(' ', $descriptions)),
-      '#value_callback' => 'scheduler_date_value_callback',
-    );
     if ($use_date_popup) {
-      // Make this a popup calendar widget.
-      $form['scheduler_settings']['publish_on']['#attached'] = array(
-        'library' => array(array('system', 'ui.datepicker')),
-        'js' => array(array(
-          'data' => "jQuery(function ($) {
-            $('#edit-publish-on').datepicker();
-          });",
-          'type' => 'inline',
-        ))
-      );
-      $form['scheduler_settings']['publish_on']['#date_format'] = $date_format;
-      $form['scheduler_settings']['publish_on']['#date_year_range'] = '0:+10';
       unset($descriptions['format']);
-      $form['scheduler_settings']['publish_on']['#description'] = filter_xss(implode(' ', $descriptions));
+      $form['scheduler_settings']['publish_on'] = array(
+        '#type' => 'html_datetime',
+        '#title' => t('Publish on'),
+        '#default_value' => array(
+          'date' => format_date($defaults->publish_on, 'custom', DATE_FORMAT_DATE),
+          'time' => format_date($defaults->publish_on, 'custom', DATE_FORMAT_TIME),
+        ),
+        '#attributes' => array(
+          'date' => array(
+            'min' => '1970-01-01',
+            'max' => '2037-12-31',
+            'placeholder' => t('e.g. @date', array(
+              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_DATE)
+            )),
+          ),
+          'time' => array(
+            'placeholder' => t('e.g. @date', array(
+              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_TIME)
+            )),
+          ),
+        ),
+        '#description' => filter_xss(implode(' ', $descriptions)),
+      );
+    }
+    else {
+      $form['scheduler_settings']['publish_on'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Publish on'),
+        '#maxlength' => 30,
+        '#required' => $publishing_required,
+        '#default_value' => isset($defaults->publish_on) && $defaults->publish_on ? format_date($defaults->publish_on, 'custom', $internal_date_format) : '',
+        '#description' => filter_xss(implode(' ', $descriptions)),
+        '#value_callback' => 'scheduler_date_value_callback',
+      );
     }
   }
 
@@ -161,30 +173,42 @@ function _scheduler_form_alter(&$form, $form_state) {
     else {
       unset($descriptions['blank']);
     }
-    $form['scheduler_settings']['unpublish_on'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Unpublish on'),
-      '#maxlength' => 30,
-      '#required' => $unpublishing_required,
-      '#default_value' => isset($defaults->unpublish_on) && $defaults->unpublish_on ? format_date($defaults->unpublish_on, 'custom', $internal_date_format) : '',
-      '#description' => filter_xss(implode(' ', $descriptions)),
-      '#value_callback' => 'scheduler_date_value_callback',
-    );
     if ($use_date_popup) {
-      // Make this a popup calendar widget.
-      $form['scheduler_settings']['unpublish_on']['#attached'] = array(
-        'library' => array(array('system', 'ui.datepicker')),
-        'js' => array(array(
-          'data' => "jQuery(function ($) {
-            $('#edit-unpublish-on').datepicker();
-          });",
-          'type' => 'inline',
-        ))
-      );
-      $form['scheduler_settings']['unpublish_on']['#date_format'] = $date_format;
-      $form['scheduler_settings']['unpublish_on']['#date_year_range'] = '0:+10';
       unset($descriptions['format']);
-      $form['scheduler_settings']['unpublish_on']['#description'] = filter_xss(implode(' ', $descriptions));
+      $form['scheduler_settings']['unpublish_on'] = array(
+        '#type' => 'html_datetime',
+        '#title' => t('Unpublish on'),
+        '#default_value' => array(
+          'date' => format_date($defaults->unpublish_on, 'custom', DATE_FORMAT_DATE),
+          'time' => format_date($defaults->unpublish_on, 'custom', DATE_FORMAT_TIME),
+        ),
+        '#attributes' => array(
+          'date' => array(
+            'min' => '1970-01-01',
+            'max' => '2037-12-31',
+            'placeholder' => t('e.g. @date', array(
+              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_DATE)
+            )),
+          ),
+          'time' => array(
+            'placeholder' => t('e.g. @date', array(
+              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_TIME)
+            )),
+          ),
+        ),
+        '#description' => filter_xss(implode(' ', $descriptions)),
+      );
+    }
+    else {
+      $form['scheduler_settings']['unpublish_on'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Unpublish on'),
+        '#maxlength' => 30,
+        '#required' => $unpublishing_required,
+        '#default_value' => isset($defaults->unpublish_on) && $defaults->unpublish_on ? format_date($defaults->unpublish_on, 'custom', $internal_date_format) : '',
+        '#description' => filter_xss(implode(' ', $descriptions)),
+        '#value_callback' => 'scheduler_date_value_callback',
+      );
     }
   }
 }
