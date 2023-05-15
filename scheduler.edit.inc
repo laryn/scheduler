@@ -133,8 +133,8 @@ function _scheduler_form_alter(&$form, $form_state) {
         '#type' => 'html_datetime',
         '#title' => t('Publish on'),
         '#default_value' => array(
-          'date' => format_date($defaults->publish_on, 'custom', DATE_FORMAT_DATE),
-          'time' => format_date($defaults->publish_on, 'custom', DATE_FORMAT_TIME),
+          'date' => !empty($defaults->publish_on) ? format_date($defaults->publish_on, 'custom', DATE_FORMAT_DATE) : '',
+          'time' => !empty($defaults->publish_on) ? format_date($defaults->publish_on, 'custom', DATE_FORMAT_TIME) : '',
         ),
         '#attributes' => array(
           'date' => array(
@@ -159,7 +159,7 @@ function _scheduler_form_alter(&$form, $form_state) {
         '#title' => t('Publish on'),
         '#maxlength' => 30,
         '#required' => $publishing_required,
-        '#default_value' => isset($defaults->publish_on) && $defaults->publish_on ? format_date($defaults->publish_on, 'custom', $internal_date_format) : '',
+        '#default_value' => !empty($defaults->publish_on) ? format_date($defaults->publish_on, 'custom', $internal_date_format) : '',
         '#description' => filter_xss(implode(' ', $descriptions)),
         '#value_callback' => 'scheduler_date_value_callback',
       );
@@ -179,8 +179,8 @@ function _scheduler_form_alter(&$form, $form_state) {
         '#type' => 'html_datetime',
         '#title' => t('Unpublish on'),
         '#default_value' => array(
-          'date' => format_date($defaults->unpublish_on, 'custom', DATE_FORMAT_DATE),
-          'time' => format_date($defaults->unpublish_on, 'custom', DATE_FORMAT_TIME),
+          'date' => !empty($defaults->unpublish_on) ? format_date($defaults->unpublish_on, 'custom', DATE_FORMAT_DATE) : '',
+          'time' => !empty($defaults->unpublish_on) ? format_date($defaults->unpublish_on, 'custom', DATE_FORMAT_TIME) : '',
         ),
         '#attributes' => array(
           'date' => array(
@@ -205,7 +205,7 @@ function _scheduler_form_alter(&$form, $form_state) {
         '#title' => t('Unpublish on'),
         '#maxlength' => 30,
         '#required' => $unpublishing_required,
-        '#default_value' => isset($defaults->unpublish_on) && $defaults->unpublish_on ? format_date($defaults->unpublish_on, 'custom', $internal_date_format) : '',
+        '#default_value' => !empty($defaults->unpublish_on) ? format_date($defaults->unpublish_on, 'custom', $internal_date_format) : '',
         '#description' => filter_xss(implode(' ', $descriptions)),
         '#value_callback' => 'scheduler_date_value_callback',
       );

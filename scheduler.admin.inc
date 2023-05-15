@@ -33,16 +33,15 @@ function scheduler_admin() {
     '#title' => t('Field type'),
     '#default_value' => $config->get('scheduler_field_type'),
     '#options' => array(
+      'date_popup' => t('HTML Datetime field with popup calendar'),
       'textfield' => t('Standard text field'),
-      'date_popup' => t('Date popup calendar'),
     ),
-    '#description' => t('The Date module is enabled.'),
   );
 
   if (!module_exists('date')) {
     $form['field_type']['#default_value'] = 'textfield';
     $form['field_type']['#disabled'] = TRUE;
-    $form['field_type']['#description'] = t('To use the calendar you need to enable the Date module.');
+    $form['field_type']['#description'] = t('To use the HTML Datetime field you need to enable the Date module.');
   }
 
   // Options for setting date-only with default time.
@@ -256,6 +255,29 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
     '#title' => t('Enable scheduled publishing for this content type'),
     '#default_value' => $config->get('scheduler_publish_enable'),
   );
+  $scheduler_publishing_enabled = $config->get('scheduler_publish_enable');
+  $core_scheduling_enabled = $form['workflow']['scheduling_enabled']['#default_value'];
+  if ($core_scheduling_enabled) {
+    $form['scheduler']['publish']['warning'] = array(
+      '#type' => 'item',
+      '#markup' => t('Please note that it may be confusing to activate both the simplified scheduled publishing functionality that is in Backdrop core (under "Publishing settings") and the more advanced scheduled publishing available here.'),
+    );
+    if (!$scheduler_publishing_enabled) {
+      $form['scheduler']['publish']['scheduler_publish_enable']['#disabled'] = TRUE;
+      $form['scheduler']['publish']['warning']['#markup'] .= ' ' . t('Scheduler\'s publishing functionality has been disabled since core scheduled publishing is active.');
+    }
+  }
+  if ($scheduler_publishing_enabled) {
+    $form['workflow']['warning'] = array(
+      '#type' => 'item',
+      '#markup' => t('Please note that it may be confusing to activate both the simplified scheduled publishing functionality here and the more advanced scheduled publishing available via the Scheduler module (under "Scheduler").'),
+      '#weight' => 0,
+    );
+    if (!$core_scheduling_enabled) {
+      $form['workflow']['scheduling_enabled']['#disabled'] = TRUE;
+      $form['workflow']['warning']['#markup'] .= ' ' . t('Core simplified scheduled publishing functionality has been disabled since Scheduler publishing is active.');
+    }
+  }
   $form['scheduler']['publish']['scheduler_publish_touch'] = array(
     '#type' => 'checkbox',
     '#title' => t('Change content creation time to match the scheduled publish time'),
