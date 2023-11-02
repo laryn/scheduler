@@ -74,6 +74,9 @@ abstract class SchedulerTestBase extends DrupalWebTestCase {
     $this->drupalLogin($this->adminUser);
     $this->drupalPost('node/add/page', $edit, t('Save'));
     $node = $this->drupalGetNodeByTitle($title);
+
+    // Verify that the scheduler table is not empty.
+    $this->assertTrue(db_query_range('SELECT 1 FROM {scheduler}', 0, 1)->fetchField(), 'Scheduler table is not empty');
     // Show the specific page for an anonymous visitor, then assert that the
     // node is correctly published or unpublished.
     $this->drupalLogout();
@@ -86,8 +89,7 @@ abstract class SchedulerTestBase extends DrupalWebTestCase {
       $key = 'unpublish_on';
       $this->assertText($body, t('Node is published'));
     }
-    // Verify that the scheduler table is not empty.
-    $this->assertTrue(db_query_range('SELECT 1 FROM {scheduler}', 0, 1)->fetchField(), 'Scheduler table is not empty');
+
     // Modify the scheduler row to a time far enough in the past because
     // scheduler_cron uses REQUEST_TIME and our timestamp has to be before that.
     db_update('scheduler')->fields(array($key => time() - 3600))->execute();
@@ -98,6 +100,7 @@ abstract class SchedulerTestBase extends DrupalWebTestCase {
       $this->cronRun();
     }
     // Verify that the scheduler table is empty.
+    // If the cron job gives 403 check $conf[cron_key] in settings.php.
     $this->assertFalse(db_query_range('SELECT 1 FROM {scheduler}', 0, 1)->fetchField(), 'Scheduler table is empty');
     // Show the specific page for an anonymous visitor, then assert that the
     // node is correctly published or unpublished.
