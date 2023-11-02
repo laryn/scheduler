@@ -17,6 +17,18 @@ variables:
     value: ''
     description: 'Additional parameters for use in PHPUNIT parallel job matrix.'
 
+composer:
+  after_script:
+    # Third-party modules have been loaded via the projects composer.json into
+    # vendor/drupal but they need to be moved into sites/all/modules for D7.
+    # Remove when https://www.drupal.org/project/gitlab_templates/issues/3392363 is fixed.
+    - ls -lG $CI_PROJECT_DIR/$_WEB_ROOT/sites/all/modules/custom
+    - ls -lG $CI_PROJECT_DIR/vendor/drupal
+    - cp -LR $CI_PROJECT_DIR/vendor/drupal/* $CI_PROJECT_DIR/$_WEB_ROOT/sites/all/modules
+    # The directory vendor/drupal has been copied but must be removed, as this is a duplicate and causes problems.
+    - rm -R $CI_PROJECT_DIR/$_WEB_ROOT/sites/all/modules/drupal
+    - ls -lG $CI_PROJECT_DIR/$_WEB_ROOT/sites/all/modules
+
 phpcs:
   allow_failure: false
 
