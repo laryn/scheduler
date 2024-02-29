@@ -12,16 +12,41 @@ include:
       - '/includes/include.drupalci.workflows.yml'
 
 variables:
-  _SHOW_ENVIRONMENT_VARIABLES: 0
+  _SHOW_ENVIRONMENT_VARIABLES: 1
   _D7_DRUPAL_COMPOSER_NEEDED: 1
   _PHPUNIT_PARAMETERS:
     value: ''
     description: 'Additional parameters for use in PHPUNIT parallel job matrix.'
 
+# -------------------------------- BUILD ---------------------------------------
+
+.skip-and-opt-in-debug: &skip-and-opt-in-debug
+  - |
+    echo " "
+    echo "SKIP_PHPCS=$SKIP_PHPCS" $([[ $SKIP_PHPCS != 0 ]] && echo "(not default)")
+    echo "SKIP_PHPUNIT=$SKIP_PHPUNIT" $([[ $SKIP_PHPUNIT != 0 ]] && echo "(not default)")
+    echo "SKIP_TEST_ONLY_CHANGES=$SKIP_TEST_ONLY_CHANGES" $([[ $SKIP_TEST_ONLY_CHANGES != 0 ]] && echo "(not default)")
+    echo " "
+    echo "_GITLAB_TEMPLATES_REPO = $_GITLAB_TEMPLATES_REPO"
+    echo "_CURL_TEMPLATES_REPO   = $_CURL_TEMPLATES_REPO"
+    echo "_GITLAB_TEMPLATES_REF  = $_GITLAB_TEMPLATES_REF"
+    echo "_CURL_TEMPLATES_REF    = $_CURL_TEMPLATES_REF"
+
+composer:
+  after_script:
+    - *skip-and-opt-in-debug
+    # Show the last three commits. Current directory /builds/project/scheduler ($CI_PROJECT_DIR) is correct.
+    - pwd
+    - git show -3 --stat
+
+# -------------------------------- VALIDATE ------------------------------------
+
 phpcs:
   allow_failure: false
 
-phpunit:
+# -------------------------------- TEST ----------------------------------------
+
+.scheduler-matrix: &scheduler-matrix
   parallel:
     matrix:
       # Run test classes in parallel.
@@ -30,6 +55,18 @@ phpunit:
         - SchedulerDateModuleTest
         - SchedulerRulesTest
         - SchedulerApiTestCase
-  variables:
-    # Specify the required parameters passed to RUN-TESTS.SH
-    _PHPUNIT_EXTRA: --class $_MATRIX_VALUE $_PHPUNIT_PARAMETERS
+
+.scheduler-phpunit-rule: &scheduler-phpunit-rule
+  - variables:
+      # Specify parameters that will be passed to RUN-TESTS.SH
+      _PHPUNIT_EXTRA: --class $_MATRIX_VALUE $_PHPUNIT_PARAMETERS
+
+phpunit:
+  <<: *scheduler-matrix
+  rules:
+    - !reference [ .skip-phpunit-rule ]
+    - *scheduler-phpunit-rule
+    - when: on_success
+  after_script:
+    - pwd
+    - printf "_PHPUNIT_EXTRA=$_PHPUNIT_EXTRA\n_MATRIX_VALUE=$_MATRIX_VALUE\n_PHPUNIT_PARAMETERS=$_PHPUNIT_PARAMETERS"
