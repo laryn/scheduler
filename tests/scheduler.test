@@ -866,14 +866,14 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
   public function testPermissions() {
     // Create a user who can add the content type but who does not have the
     // permission to use the scheduler functionality.
-    $this->webUser = $this->drupalCreateUser(array(
+    $webUser = $this->drupalCreateUser(array(
       'access content',
       'create page content',
       'edit own page content',
       'view own unpublished content',
       'administer nodes',
     ));
-    $this->drupalLogin($this->webUser);
+    $this->drupalLogin($webUser);
 
     // Set the defaults for a new node. Nothing in array means all OFF for
     // 'status', 'promote' and 'sticky'.
@@ -1219,6 +1219,20 @@ class SchedulerDateModuleTest extends SchedulerTestBase {
  * Tests Schedulers interaction with the Rules module.
  */
 class SchedulerRulesTest extends SchedulerTestBase {
+
+  /**
+   * A test node object.
+   *
+   * @var object
+   */
+  protected $node;
+
+  /**
+   * An array of event messages.
+   *
+   * @var array
+   */
+  protected $eventMessage;
 
   /**
    * {@inheritdoc}

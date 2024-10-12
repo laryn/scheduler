@@ -13,10 +13,7 @@ include:
 
 variables:
   _SHOW_ENVIRONMENT_VARIABLES: 1
-  _D7_DRUPAL_COMPOSER_NEEDED: 1
-  _PHPUNIT_PARAMETERS:
-    value: ''
-    description: 'Additional parameters for use in PHPUNIT parallel job matrix.'
+  OPT_IN_TEST_MAX_PHP: 1
 
 # -------------------------------- BUILD ---------------------------------------
 
@@ -32,12 +29,20 @@ variables:
     echo "_GITLAB_TEMPLATES_REF  = $_GITLAB_TEMPLATES_REF"
     echo "_CURL_TEMPLATES_REF    = $_CURL_TEMPLATES_REF"
 
-composer:
+.composer-base:
   after_script:
     - *skip-and-opt-in-debug
     # Show the last three commits. Current directory /builds/project/scheduler ($CI_PROJECT_DIR) is correct.
     - pwd
     - git show -3 --stat
+    # Third-party modules loaded via the projects composer.json will be in
+    # vendor/drupal but they need to be moved into sites/all/modules.
+    # The 'drupal' and 'coder' directories must not be moved.
+    # @todo Remove this when https://www.drupal.org/project/gitlab_templates/issues/3480296 is complete.
+    - ls $CI_PROJECT_DIR/vendor/drupal | grep -Ev '(drupal|coder)' | xargs -I {} mv -v $CI_PROJECT_DIR/vendor/drupal/{} $CI_PROJECT_DIR/$_WEB_ROOT/sites/all/modules || true
+    # Give confirmation of the directories in vendor/drupal and sites/all/modules.
+    - ls $CI_PROJECT_DIR/vendor/drupal
+    - ls $CI_PROJECT_DIR/$_WEB_ROOT/sites/all/modules
 
 # -------------------------------- VALIDATE ------------------------------------
 
