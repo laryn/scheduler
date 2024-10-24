@@ -82,11 +82,8 @@ function _scheduler_publish() {
 
     // Use the actions system to publish the node.
     watchdog('scheduler', '@type: scheduled publishing of %title.', array('@type' => $n->type, '%title' => $n->title), WATCHDOG_NOTICE, l(t('view'), 'node/' . $n->nid, array('alias' => TRUE)));
-    $actions = array('node_publish_action', 'node_save_action');
     $context['node'] = $n;
-    foreach($actions as $action) {
-      actions_execute($action, $n, $context);
-    }
+    actions_execute('node_publish_action', $n, $context);
 
     // Invoke the event to tell Rules that Scheduler has published this node.
     if (module_exists('rules')) {
@@ -180,11 +177,8 @@ function _scheduler_unpublish() {
 
     // Use the actions system to unpublish the node.
     watchdog('scheduler', '@type: scheduled unpublishing of %title.', array('@type' => $n->type, '%title' => $n->title), WATCHDOG_NOTICE, l(t('view'), 'node/' . $n->nid, array('alias' => TRUE)));
-    $actions = array('node_unpublish_action', 'node_save_action');
     $context['node'] = $n;
-    foreach ($actions as $action) {
-      actions_execute($action, $n, $context);
-    }
+    actions_execute('node_unpublish_action', $n, $context);
 
     // Invoke event to tell Rules that Scheduler has unpublished this node.
     if (module_exists('rules')) {
