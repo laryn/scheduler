@@ -19,10 +19,20 @@ function _scheduler_form_alter(&$form, $form_state) {
   $scheduler_config = config('scheduler.settings');
   $publishing_enabled = $config->get('scheduler_publish_enable') == 1;
   $unpublishing_enabled = $config->get('scheduler_unpublish_enable') == 1;
-  $date_format = $scheduler_config->get('scheduler_date_format');
-  $date_only_format = $scheduler_config->get('scheduler_date_only_format');
-  $time_only_format = $scheduler_config->get('scheduler_time_only_format');
-  $date_only_allowed = $scheduler_config->get('scheduler_allow_date_only');
+  $date_format = $scheduler_config->get('date_format');
+  $date_only_format = $scheduler_config->get('date_only_format');
+  $time_only_format = $scheduler_config->get('time_only_format');
+  $date_only_allowed = $scheduler_config->get('allow_date_only');
+  $date_min = date('Y-m-d');
+  $date_limit = $scheduler_config->get('date_limit');
+  if ($date_limit) {
+    $date_limit_quantity = $scheduler_config->get('date_limit_quantity');
+    $date_limit_units = $scheduler_config->get('date_limit_units');
+    $date_max = date('Y-m-d', strtotime('+' . $date_limit_quantity . ' ' . $date_limit_units));
+  }
+  else {
+    $date_max = date('Y-m-d', strtotime('+30 years'));
+  }
   $use_date_popup = _scheduler_use_date_popup();
   $internal_date_format = $use_date_popup ? SCHEDULER_DATE_FORMAT : $date_format;
   $node = $form['#node'];
@@ -70,13 +80,11 @@ function _scheduler_form_alter(&$form, $form_state) {
     && (empty($node->nid) || $node->status == 1 || !empty($node->publish_on));
 
   $use_vertical_tabs = $config->get('scheduler_use_vertical_tabs');
-  $fieldset_extended = (
-    (isset($defaults->publish_on) && $defaults->publish_on != 0)
+  $fieldset_extended = ((isset($defaults->publish_on) && $defaults->publish_on != 0)
     || (isset($defaults->unpublish_on) && $defaults->unpublish_on != 0)
     || $publishing_required
     || $unpublishing_required
-    || $config->get('scheduler_expand_fieldset')
-  );
+    || $config->get('scheduler_expand_fieldset'));
 
   $form['scheduler_settings'] = array(
     '#type' => 'fieldset',
@@ -92,7 +100,7 @@ function _scheduler_form_alter(&$form, $form_state) {
     $form['scheduler_settings']['#attached']['js'][] = backdrop_get_path('module', 'scheduler') . '/js/scheduler_vertical_tabs.js';
   }
 
-  $extra_info = config_get('scheduler.settings','extra_info');
+  $extra_info = config_get('scheduler.settings', 'extra_info');
   if ($extra_info && $extra_info != '') {
     $form['scheduler_settings']['extra_info'] = array(
       '#type' => 'item',
@@ -116,9 +124,15 @@ function _scheduler_form_alter(&$form, $form_state) {
   // Show the default time so users know what they will get if they do not
   // enter a time.
   if ($date_only_allowed) {
-    $default_time = strtotime(config_get('scheduler.settings','scheduler_default_time'));
+    $default_time = strtotime(config_get('scheduler.settings', 'scheduler_default_time'));
     $descriptions['default'] = t('The default time is @default_time.', array(
       '@default_time' => format_date($default_time, 'custom', $time_only_format ? $time_only_format : SCHEDULER_TIME_ONLY_FORMAT),
+    ));
+  }
+  // Show the date range if there is a limit.
+  if ($date_limit) {
+    $descriptions['range'] = t('Entered date must be before @date_max.', array(
+      '@date_max' => format_date(strtotime($date_max), 'custom', $date_only_format),
     ));
   }
 
@@ -138,19 +152,20 @@ function _scheduler_form_alter(&$form, $form_state) {
         ),
         '#attributes' => array(
           'date' => array(
-            'min' => '1970-01-01',
-            'max' => '2037-12-31',
+            'min' => $date_min,
+            'max' => $date_max,
             'placeholder' => t('e.g. @date', array(
-              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_DATE)
+              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_DATE),
             )),
           ),
           'time' => array(
             'placeholder' => t('e.g. @date', array(
-              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_TIME)
+              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_TIME),
             )),
           ),
         ),
         '#description' => filter_xss(implode(' ', $descriptions)),
+        '#required' => $publishing_required,
       );
     }
     else {
@@ -184,19 +199,20 @@ function _scheduler_form_alter(&$form, $form_state) {
         ),
         '#attributes' => array(
           'date' => array(
-            'min' => '1970-01-01',
-            'max' => '2037-12-31',
+            'min' => $date_min,
+            'max' => $date_max,
             'placeholder' => t('e.g. @date', array(
-              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_DATE)
+              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_DATE),
             )),
           ),
           'time' => array(
             'placeholder' => t('e.g. @date', array(
-              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_TIME)
+              '@date' => format_date(REQUEST_TIME, 'custom', DATE_FORMAT_TIME),
             )),
           ),
         ),
         '#description' => filter_xss(implode(' ', $descriptions)),
+        '#required' => $unpublishing_required,
       );
     }
     else {

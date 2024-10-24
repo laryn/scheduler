@@ -249,8 +249,8 @@ function _scheduler_allow($node, $action) {
 function _scheduler_strtotime($str) {
   $config = config('scheduler.settings');
   if ($str && trim($str) != "") {
-    $date_format = $config->get('scheduler_date_format');
-    $date_only_format = $config->get('scheduler_date_only_format');
+    $date_format = $config->get('date_format');
+    $date_only_format = $config->get('date_only_format');
 
     if (_scheduler_use_date_popup()) {
       // Date Popup currently returns the value into the $node using its default
@@ -269,15 +269,15 @@ function _scheduler_strtotime($str) {
     // If the time failed using the full $date_format or no time entry is
     // allowed, but date-only with a default time is enabled, check if the input
     // matches the "date only" date format.
-    $time_only_format = $config->get('scheduler_time_only_format');
-    if ((!$time || $time_only_format == '') && $config->get('scheduler_allow_date_only')) {
+    $time_only_format = $config->get('time_only_format');
+    if ((!$time || $time_only_format == '') && $config->get('allow_date_only')) {
       if ($time = _scheduler_strptime($str, $date_only_format)) {
         // A time has been calculated, but also check that there was only a
         // date entered and no extra mal-formed time elements.
         if ($str == date($date_only_format, $time)) {
           // Parse the default time string into elements, then add the total
           // offset in seconds to the timestamp.
-          $default_time = date_parse($config->get('scheduler_default_time'));
+          $default_time = date_parse($config->get('default_time'));
           $time_offset = ($default_time['hour'] * 3600) + ($default_time['minute'] * 60) + $default_time['second'];
           $time += $time_offset;
         }
@@ -491,8 +491,15 @@ function scheduler_node_validate($node, $form, &$form_state) {
   // already converted. This is needed because Drupal 6 removed 'submit' and
   // added 'presave' and all this happens at different times. If the value is
   // passed as an array this means we are using the Date Popup functionality.
-  $date_format = $config->get('scheduler_date_format');
+  $date_format = $config->get('date_format');
   $args = array('%time' => format_date(REQUEST_TIME, 'custom', $date_format));
+  $date_limit = $config->get('date_limit');
+  if ($date_limit) {
+    $date_limit_quantity = $config->get('date_limit_quantity');
+    $date_limit_units = $config->get('date_limit_units');
+    $date_limit_strtotime = strtotime("+$date_limit_quantity $date_limit_units");
+    $date_limit_readable = _scheduler_date_limits_readable();
+  }
 
   if (!empty($node->publish_on) && !is_numeric($node->publish_on)) {
     if (!is_array($node->publish_on)) {
@@ -502,6 +509,11 @@ function scheduler_node_validate($node, $form, &$form_state) {
       }
       elseif ($publishtime && config_get('node.type.' . $node->type, 'scheduler_publish_past_date') == 'error' && $publishtime < REQUEST_TIME) {
         form_set_error('publish_on', t("The 'publish on' date must be in the future"));
+      }
+      elseif ($date_limit && $publishtime > $date_limit_strtotime) {
+        form_set_error('publish_on', t("The 'publish on' date must be within @date_limit from now.", array(
+          '@date_limit' => $date_limit_readable,
+        )));
       }
     }
     elseif (!empty($node->publish_on['date'])) {
@@ -518,6 +530,11 @@ function scheduler_node_validate($node, $form, &$form_state) {
       }
       elseif ($unpublishtime && $unpublishtime < REQUEST_TIME) {
         form_set_error('unpublish_on', t("The 'unpublish on' date must be in the future"));
+      }
+      elseif ($date_limit && $unpublishtime > $date_limit_strtotime) {
+        form_set_error('unpublish_on', t("The 'unpublish on' date must be within @date_limit from now.", array(
+          '@date_limit' => $date_limit_readable,
+        )));
       }
     }
     elseif (!empty($node->unpublish_on['date'])) {
@@ -710,7 +727,7 @@ function scheduler_cron() {
   // nodes were edited through the node edit form.
   $nodes_published = _scheduler_publish();
   $nodes_unpublished = _scheduler_unpublish();
-  if ($config->get('scheduler_cache_clear_all') && ($nodes_published || $nodes_unpublished)) {
+  if ($config->get('cache_clear_all') && ($nodes_published || $nodes_unpublished)) {
     // Clear the page and block caches.
     cache_clear_all();
     watchdog('scheduler', 'Page and block caches cleared.', array(), WATCHDOG_NOTICE, l(t('settings'), 'admin/config/content/scheduler'));
@@ -943,11 +960,11 @@ function scheduler_field_attach_prepare_translation_alter($entity, $context) {
 function scheduler_date_popup_pre_validate_alter($element, $form_state, &$input) {
   $config = config('scheduler.settings');
   // Provide a default time if this is enabled and the time field is empty.
-  if ($config->get('scheduler_allow_date_only') && $element['#array_parents'][0] == 'scheduler_settings' && !empty($input['date']) && empty($input['time'])) {
+  if ($config->get('allow_date_only') && $element['#array_parents'][0] == 'scheduler_settings' && !empty($input['date']) && empty($input['time'])) {
     // Get the default time as a timestamp number.
-    $default_time = strtotime($config->get('scheduler_default_time'));
+    $default_time = strtotime($config->get('default_time'));
     // Set the time in the required format just as if the user had typed it.
-    $input['time'] = format_date($default_time, 'custom', $config->get('scheduler_time_only_format'));
+    $input['time'] = format_date($default_time, 'custom', $config->get('time_only_format'));
   }
 }
 
@@ -958,4 +975,35 @@ function _scheduler_get_vertical_tabs_js() {
   global $theme;
   backdrop_add_js(array('scheduler_vertical_tabs' => array('theme' => $theme)), array('type' => 'setting'));
   return backdrop_get_path('module', 'scheduler') . "/js/scheduler_vertical_tabs.js";
+}
+
+/**
+ * Internal function to indicate date limits in readable form.
+ */
+function _scheduler_date_limits_readable() {
+  $units = array(
+    'day' => array(
+      'singular' => t('day'),
+      'plural' => t('days'),
+    ),
+    'week' => array(
+      'singular' => t('week'),
+      'plural' => t('weeks'),
+    ),
+    'month' => array(
+      'singular' => t('month'),
+      'plural' => t('months'),
+    ),
+    'year' => array(
+      'singular' => t('year'),
+      'plural' => t('years'),
+    ),
+  );
+  $config = config('scheduler.settings');
+  $date_limit_quantity = $config->get('date_limit_quantity');
+  $date_limit_units = $config->get('date_limit_units');
+  if ($date_limit_quantity && $date_limit_units) {
+    return format_plural($date_limit_quantity, $units[$date_limit_units]['singular'], '@count ' . $units[$date_limit_units]['plural']);
+  }
+  return '';
 }

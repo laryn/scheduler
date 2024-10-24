@@ -58,7 +58,38 @@ function scheduler_admin() {
       '!url' => l(t('the PHP date() function'), 'https://www.php.net/manual/en/function.date.php'),
     )),
   );
-
+  $form['date_details']['date_limit'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Limit how far into the future to allow scheduling.'),
+    '#default_value' => $config->get('date_limit'),
+    '#description' => t('Enter a quantity and select which type of units (days, weeks, months, years) you would like to use as the scheduling limit, measured from the current date when creating or editing content.'),
+  );
+  $form['date_details']['date_limits'] = array(
+    '#type' => 'container',
+    '#states' => array(
+      'visible' => array(
+        ':input[name="date_limit"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+  $form['date_details']['date_limits']['date_limit_quantity'] = array(
+    '#type' => 'number',
+    '#title' => t('Quantity'),
+    '#default_value' => $config->get('date_limit_quantity'),
+    '#size' => 2,
+    '#min' => 1,
+  );
+  $form['date_details']['date_limits']['date_limit_units'] = array(
+    '#type' => 'select',
+    '#title' => t('Units'),
+    '#default_value' => $config->get('date_limit_units'),
+    '#options' => array(
+      'day' => t('Days'),
+      'week' => t('Weeks'),
+      'month' => t('Months'),
+      'year' => t('Years'),
+    ),
+  );
   $form['date_details']['allow_date_only'] = array(
     '#type' => 'checkbox',
     '#title' => t('Allow users to enter only a date and provide a default time.'),
@@ -87,6 +118,7 @@ function scheduler_admin() {
     '#description' => t('If a node has been published or unpublished by Scheduler during a cron run, this option will clear the caches instead of relying on the Backdrop system cron task. Warning: This may have a detrimental effect on performance for large sites.'),
   );
 
+  $form['#attached']['css'][] = backdrop_get_path('module', 'scheduler') . '/css/scheduler.admin.css';
   // Add a submit handler function.
   $form['#submit'][] = 'scheduler_admin_submit';
 
@@ -169,11 +201,14 @@ function scheduler_admin_submit($form, &$form_state) {
   $config->set('date_only_format', $date_only_format);
 
   // Save config.
-  $config->set('date_format',$format);
+  $config->set('date_format', $format);
   $config->set('field_type', $form_state['values']['field_type']);
   $config->set('allow_date_only', $form_state['values']['allow_date_only']);
   $config->set('default_time', $form_state['values']['default_time']);
   $config->set('extra_info', $form_state['values']['extra_info']);
+  $config->set('date_limit', $form_state['values']['date_limit']);
+  $config->set('date_limit_quantity', $form_state['values']['date_limit_quantity']);
+  $config->set('date_limit_units', $form_state['values']['date_limit_units']);
   $config->set('cache_clear_all', $form_state['values']['cache_clear_all']);
   $config->save();
 
@@ -411,19 +446,18 @@ function _scheduler_form_node_type_form_alter(&$form, $form_state) {
 /**
   * Form submit handler for _scheduler_form_node_type_form_alter
   */
-
 function _scheduler_form_node_type_form_submit($form, &$form_state) {
   $config = config('node.type.' . $form['#node_type']->type);
-  $config->set('scheduler_publish_enable',$form_state['values']['scheduler_publish_enable']);
-  $config->set('scheduler_expand_fieldset',$form_state['values']['scheduler_expand_fieldset']);
-  $config->set('scheduler_use_vertical_tabs',$form_state['values']['scheduler_use_vertical_tabs']);
-  $config->set('scheduler_unpublish_revision',$form_state['values']['scheduler_unpublish_revision']);
-  $config->set('scheduler_unpublish_required',$form_state['values']['scheduler_unpublish_required']);
-  $config->set('scheduler_unpublish_enable',$form_state['values']['scheduler_unpublish_enable']);
-  $config->set('scheduler_publish_past_date',$form_state['values']['scheduler_publish_past_date']);
-  $config->set('scheduler_publish_revision',$form_state['values']['scheduler_publish_revision']);
-  $config->set('scheduler_publish_required',$form_state['values']['scheduler_publish_required']);
-  $config->set('scheduler_publish_touch',$form_state['values']['scheduler_publish_touch']);
+  $config->set('scheduler_publish_enable', $form_state['values']['scheduler_publish_enable']);
+  $config->set('scheduler_expand_fieldset', $form_state['values']['scheduler_expand_fieldset']);
+  $config->set('scheduler_use_vertical_tabs', $form_state['values']['scheduler_use_vertical_tabs']);
+  $config->set('scheduler_unpublish_revision', $form_state['values']['scheduler_unpublish_revision']);
+  $config->set('scheduler_unpublish_required', $form_state['values']['scheduler_unpublish_required']);
+  $config->set('scheduler_unpublish_enable', $form_state['values']['scheduler_unpublish_enable']);
+  $config->set('scheduler_publish_past_date', $form_state['values']['scheduler_publish_past_date']);
+  $config->set('scheduler_publish_revision', $form_state['values']['scheduler_publish_revision']);
+  $config->set('scheduler_publish_required', $form_state['values']['scheduler_publish_required']);
+  $config->set('scheduler_publish_touch', $form_state['values']['scheduler_publish_touch']);
   $config->save();
 }
 
@@ -541,7 +575,7 @@ function theme_scheduler_timecheck(array $variables) {
     . '</p><p>' . t('The website default timezone is @date_default_timezone (@date_default_code) which is offset from GMT by @date_default_offset hours. This timezone can be <a href="@admin_regional_settings">changed by admin users</a> with the appropriate access.', $t_options)
     . '</p>';
 
-  if (config_get('system.date','user_configurable_timezones')) {
+  if (config_get('system.date', 'user_configurable_timezones')) {
     $output .= '<p>' . t('Your local time is @localtime (@daylight_saving). You can change this via your <a href="@user_account">user account</a>.', $t_options) . '</p>';
     if (empty($user->timezone)) {
       $output .= '<p>' . t('Note: The user timezone has not been stored, so defaulting to the website timezone.') . '</p>';
