@@ -10,28 +10,11 @@
  */
 function scheduler_admin() {
   $config = config('scheduler.settings');
-  $now = t('Example: %date', array(
-    '%date' => format_date(REQUEST_TIME, 'custom', $config->get('scheduler_date_format')),
-  ));
-  $form['date_format'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Date format'),
-    '#default_value' => $config->get('scheduler_date_format'),
-    '#size' => 20,
-    '#maxlength' => 20,
-    '#required' => TRUE,
-    '#field_suffix' => ' <small>' . $now . '</small>',
-    '#description' => t('The format for entering scheduled dates and times. For the date use the letters !date_letters and for the time use !time_letters. See !url for more details.', array(
-      '!date_letters' => SCHEDULER_DATE_LETTERS,
-      '!time_letters' => SCHEDULER_TIME_LETTERS,
-      '!url' => l(t('the PHP date() function'), 'http://www.php.net/manual/en/function.date.php'),
-    )),
-  );
 
   $form['field_type'] = array(
     '#type' => 'radios',
     '#title' => t('Field type'),
-    '#default_value' => $config->get('scheduler_field_type'),
+    '#default_value' => $config->get('field_type'),
     '#options' => array(
       'date_popup' => t('HTML Datetime field with popup calendar'),
       'textfield' => t('Standard text field'),
@@ -44,44 +27,63 @@ function scheduler_admin() {
     $form['field_type']['#description'] = t('To use the HTML Datetime field you need to enable the Date module.');
   }
 
-  // Options for setting date-only with default time.
-  $form['date_only_fieldset'] = array(
+  $form['extra_info'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Description'),
+    '#default_value' => $config->get('extra_info'),
+    '#description' => t('The text entered into this field will be displayed above the scheduling fields in the content edit form.'),
+  );
+
+  $now = t('Example: %date', array(
+    '%date' => format_date(REQUEST_TIME, 'custom', $config->get('date_format')),
+  ));
+
+  // Options for setting date-related details.
+  $form['date_details'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Date only'),
+    '#title' => t('Date details'),
     '#collapsible' => FALSE,
   );
-  $form['date_only_fieldset']['allow_date_only'] = array(
+  $form['date_details']['date_format'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Date format'),
+    '#default_value' => $config->get('date_format'),
+    '#size' => 20,
+    '#maxlength' => 20,
+    '#required' => TRUE,
+    '#field_suffix' => ' <small>' . $now . '</small>',
+    '#description' => t('The format for entering scheduled dates and times. For the date use the letters !date_letters and for the time use !time_letters. See !url for more details.', array(
+      '!date_letters' => SCHEDULER_DATE_LETTERS,
+      '!time_letters' => SCHEDULER_TIME_LETTERS,
+      '!url' => l(t('the PHP date() function'), 'https://www.php.net/manual/en/function.date.php'),
+    )),
+  );
+
+  $form['date_details']['allow_date_only'] = array(
     '#type' => 'checkbox',
     '#title' => t('Allow users to enter only a date and provide a default time.'),
-    '#default_value' => $config->get('scheduler_allow_date_only'),
+    '#default_value' => $config->get('allow_date_only'),
     '#description' => t('When only a date is entered the time will default to a specified value, but the user can change this if required.'),
   );
-  $form['date_only_fieldset']['default_time'] = array(
+  $form['date_details']['default_time'] = array(
     '#type' => 'textfield',
     '#title' => t('Default time'),
-    '#default_value' => $config->get('scheduler_default_time'),
+    '#default_value' => $config->get('default_time'),
     '#size' => 20,
     '#maxlength' => 20,
     '#description' => t('This is the time that will be used if the user does not enter a value. Format: HH:MM:SS.'),
     '#states' => array(
       'visible' => array(
-        ':input[name="scheduler_allow_date_only"]' => array('checked' => TRUE),
+        ':input[name="allow_date_only"]' => array('checked' => TRUE),
       ),
     ),
   );
 
-  $form['extra_info'] = array(
-    '#type' => 'textarea',
-    '#title' => t('Extra Info'),
-    '#default_value' => $config->get('scheduler_extra_info'),
-    '#description' => t('The text entered into this field will be displayed above the scheduling fields in the node edit form.'),
-  );
-
-  $form['scheduler_cache_clear_all'] = array(
+  $form['cache_clear_all'] = array(
     '#prefix' => '<label>' . t('Cache') . '</label>',
     '#type' => 'checkbox',
     '#title' => t('Clear all expired block and page caches after publishing or unpublishing via cron.'),
-    '#default_value' => $config->get('scheduler_cache_clear_all'),
+    '#default_value' => $config->get('cache_clear_all'),
     '#description' => t('If a node has been published or unpublished by Scheduler during a cron run, this option will clear the caches instead of relying on the Backdrop system cron task. Warning: This may have a detrimental effect on performance for large sites.'),
   );
 
@@ -161,18 +163,18 @@ function scheduler_admin_submit($form, &$form_state) {
   // end with a letter, but any punctuation between these will be retained.
   $format = $form_state['values']['date_format'];
   $time_only_format = scheduler_get_time_only_format($format);
-  $config->set('scheduler_time_only_format', $time_only_format);
+  $config->set('time_only_format', $time_only_format);
 
   $date_only_format = scheduler_get_date_only_format($format);
-  $config->set('scheduler_date_only_format', $date_only_format);
+  $config->set('date_only_format', $date_only_format);
 
   // Save config.
-  $config->set('scheduler_date_format',$format);
-  $config->set('scheduler_field_type', $form_state['values']['field_type']);
-  $config->set('scheduler_allow_date_only', $form_state['values']['allow_date_only']);
-  $config->set('scheduler_default_time', $form_state['values']['default_time']);
-  $config->set('scheduler_extra_info', $form_state['values']['extra_info']);
-  $config->set('scheduler_cache_clear_all', $form_state['values']['scheduler_cache_clear_all']);
+  $config->set('date_format',$format);
+  $config->set('field_type', $form_state['values']['field_type']);
+  $config->set('allow_date_only', $form_state['values']['allow_date_only']);
+  $config->set('default_time', $form_state['values']['default_time']);
+  $config->set('extra_info', $form_state['values']['extra_info']);
+  $config->set('cache_clear_all', $form_state['values']['cache_clear_all']);
   $config->save();
 
   if (empty($time_only_format)) {
@@ -434,41 +436,41 @@ function _scheduler_lightweight_cron($form, &$form_state) {
   $form = array();
   $prefix_text = t("You can test Scheduler's lightweight cron process interactively");
   $form['#config'] = 'scheduler.settings';
-  $form['scheduler_cron'] = array(
+  $form['cron'] = array(
     '#type' => 'submit',
     '#prefix' => '<div class="container-inline">' . $prefix_text . ': ',
     '#value' => t("Run Scheduler's lightweight cron now"),
     '#submit' => array('_scheduler_lightweight_cron_submit'),
     '#suffix' => "</div>\n",
   );
-  $form['scheduler_cron_settings'] = array(
+  $form['cron_settings'] = array(
     '#type' => 'fieldset',
     '#title' => t('Lightweight cron settings'),
   );
-  $form['scheduler_cron_settings']['scheduler_lightweight_log'] = array(
+  $form['cron_settings']['lightweight_log'] = array(
     '#type' => 'checkbox',
     '#title' => t('Log every activation and completion message.'),
-    '#default_value' => $config->get('scheduler_lightweight_log'),
+    '#default_value' => $config->get('lightweight_log'),
     '#description' => t("When this option is checked, Scheduler will write an entry to the log every time the lightweight cron process is started and completed. This is useful during set up and testing, but can result in a large number of log entries. Any actions performed during the lightweight cron run will always be logged regardless of this setting."),
   );
-  $form['scheduler_cron_settings']['scheduler_lightweight_access_key'] = array(
+  $form['cron_settings']['lightweight_access_key'] = array(
     '#type' => 'textfield',
     '#title' => t('Lightweight cron access key'),
     '#size' => 100,
-    '#default_value' => $config->get('scheduler_lightweight_access_key'),
+    '#default_value' => $config->get('lightweight_access_key'),
     '#description' => t("Similar to Backdrop's cron key this acts as a security token to prevent unauthorised calls to scheduler/cron. The key should be passed as scheduler/cron/&lt;this key&gt;. To disable security for lightweight cron leave this field blank."),
   );
-  if (isset($form_state['scheduler_generate_new_key'])) {
+  if (isset($form_state['generate_new_key'])) {
     $new_access_key = substr(md5(rand()), 0, 20);
     // @codingStandardsIgnoreStart
     // We have to use $form_state['input'] here as storing the new key in
     // $form_state['values'] does not work. It is acceptable to use it on the
     // left of an assignment even if PHPCS does not think so.
-    $form_state['input']['scheduler_lightweight_access_key'] = $new_access_key;
+    $form_state['input']['lightweight_access_key'] = $new_access_key;
     // @codingStandardsIgnoreEnd
     backdrop_set_message(t('A new random key has been generated but not saved. If you wish to use this, first "Save Configuration" to store the value, then modify your crontab job.'), 'warning');
   }
-  $form['scheduler_cron_settings']['create_key'] = array(
+  $form['cron_settings']['create_key'] = array(
     '#type' => 'submit',
     '#value' => t('Generate new random key'),
     '#submit' => array('_scheduler_generate_key'),
@@ -492,7 +494,7 @@ function _scheduler_lightweight_cron_submit() {
  */
 function _scheduler_generate_key($form, &$form_state) {
   // Everything in $form_state is persistent, so we can use a direct attribute.
-  $form_state['scheduler_generate_new_key'] = TRUE;
+  $form_state['generate_new_key'] = TRUE;
   // Setting $form_state['rebuild'] = TRUE causes the form to be rebuilt again.
   $form_state['rebuild'] = TRUE;
 }

@@ -103,5 +103,32 @@ function scheduler_update_1000() {
   update_variable_del('scheduler_lightweight_access_key');
   update_variable_del('scheduler_lightweight_log');
   update_variable_del('scheduler_time_only_format');
+}
 
+/**
+ * Clean up configuration keys.
+ */
+function scheduler_update_1001() {
+  $config = config('scheduler.settings');
+  $config->set('allow_date_only', $config->get('scheduler_allow_date_only'));
+  $config->clear('scheduler_allow_date_only');
+  $config->set('cache_clear_all', $config->get('scheduler_cache_clear_all'));
+  $config->clear('scheduler_cache_clear_all');
+  $config->set('date_format', $config->get('scheduler_date_format'));
+  $config->clear('scheduler_date_format');
+  $config->set('date_only_format', $config->get('scheduler_date_only_format'));
+  $config->clear('scheduler_date_only_format');
+  $config->set('default_time', $config->get('scheduler_default_time'));
+  $config->clear('scheduler_default_time');
+  $config->set('extra_info', $config->get('scheduler_extra_info'));
+  $config->clear('scheduler_extra_info');
+  $config->set('field_type', $config->get('scheduler_field_type'));
+  $config->clear('scheduler_field_type');
+  $config->set('lightweight_access_key', $config->get('scheduler_lightweight_access_key'));
+  $config->clear('scheduler_lightweight_access_key');
+  $config->set('lightweight_log', $config->get('scheduler_lightweight_log'));
+  $config->clear('scheduler_lightweight_log');
+  $config->set('time_only_format', $config->get('scheduler_time_only_format'));
+  $config->clear('scheduler_time_only_format');
+  $config->save();
 }
