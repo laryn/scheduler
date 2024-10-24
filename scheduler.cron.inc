@@ -218,7 +218,7 @@ function _scheduler_scheduler_nid_list($action) {
  * Run the lightweight cron.
  *
  * The Scheduler part of the processing performed here is the same as in the
- * normal Drupal cron run. The difference is that only scheduler_cron() is
+ * normal Backdrop cron run. The difference is that only scheduler_cron() is
  * executed, no other modules hook_cron() functions are called.
  *
  * This function is called from the external crontab job via url /scheduler/cron
