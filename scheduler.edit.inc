@@ -123,10 +123,12 @@ function _scheduler_form_alter(&$form, $form_state) {
   }
   // Show the default time so users know what they will get if they do not
   // enter a time.
+  $default_time = '00:00:00';
   if ($date_only_allowed) {
-    $default_time = strtotime(config_get('scheduler.settings', 'scheduler_default_time'));
+    $default_time = $scheduler_config->get('default_time');
+    $default_time_strtotime = strtotime($default_time);
     $descriptions['default'] = t('The default time is @default_time.', array(
-      '@default_time' => format_date($default_time, 'custom', $time_only_format ? $time_only_format : SCHEDULER_TIME_ONLY_FORMAT),
+      '@default_time' => format_date($default_time_strtotime, 'custom', $time_only_format ? $time_only_format : SCHEDULER_TIME_ONLY_FORMAT),
     ));
   }
   // Show the date range if there is a limit.
@@ -148,7 +150,7 @@ function _scheduler_form_alter(&$form, $form_state) {
         '#title' => t('Publish on'),
         '#default_value' => array(
           'date' => !empty($defaults->publish_on) ? format_date($defaults->publish_on, 'custom', DATE_FORMAT_DATE) : '',
-          'time' => !empty($defaults->publish_on) ? format_date($defaults->publish_on, 'custom', DATE_FORMAT_TIME) : '',
+          'time' => !empty($defaults->publish_on) ? format_date($defaults->publish_on, 'custom', DATE_FORMAT_TIME) : $default_time,
         ),
         '#attributes' => array(
           'date' => array(
@@ -195,7 +197,7 @@ function _scheduler_form_alter(&$form, $form_state) {
         '#title' => t('Unpublish on'),
         '#default_value' => array(
           'date' => !empty($defaults->unpublish_on) ? format_date($defaults->unpublish_on, 'custom', DATE_FORMAT_DATE) : '',
-          'time' => !empty($defaults->unpublish_on) ? format_date($defaults->unpublish_on, 'custom', DATE_FORMAT_TIME) : '',
+          'time' => !empty($defaults->unpublish_on) ? format_date($defaults->unpublish_on, 'custom', DATE_FORMAT_TIME) : $default_time,
         ),
         '#attributes' => array(
           'date' => array(

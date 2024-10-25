@@ -226,7 +226,7 @@ function _scheduler_scheduler_nid_list($action) {
  * /admin/config/content/scheduler/cron.
  */
 function _scheduler_run_cron() {
-  $log = config_get('scheduler.settings', 'scheduler_lightweight_log');
+  $log = config_get('scheduler.settings', 'lightweight_log');
   if ($log) {
     watchdog('scheduler', 'Lightweight cron run activated', array(), WATCHDOG_NOTICE);
   }

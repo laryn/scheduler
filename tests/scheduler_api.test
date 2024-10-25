@@ -8,7 +8,7 @@
 /**
  * Tests to cover the Scheduler API functions.
  */
-class SchedulerApiTestCase extends DrupalWebTestCase {
+class SchedulerApiTestCase extends BackdropWebTestCase {
 
   /**
    * The profile to install as a basis for testing.
@@ -20,23 +20,14 @@ class SchedulerApiTestCase extends DrupalWebTestCase {
   /**
    * {@inheritdoc}
    */
-  public static function getInfo() {
-    return array(
-      'name' => 'Scheduler API',
-      'description' => 'Tests for the Scheduler API.',
-      'group' => 'Scheduler',
-    );
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function setUp() {
     parent::setUp('scheduler', 'scheduler_test');
 
     // Add scheduler functionality to the 'scheduler_test' node type.
-    variable_set('scheduler_publish_enable_scheduler_test', 1);
-    variable_set('scheduler_unpublish_enable_scheduler_test', 1);
+    $nodeconfig = config('node.type.scheduler_test');
+    $nodeconfig->set('scheduler_publish_enable', 1);
+    $nodeconfig->set('scheduler_unpublish_enable', 1);
+    $nodeconfig->save();
   }
 
   /**
@@ -65,7 +56,7 @@ class SchedulerApiTestCase extends DrupalWebTestCase {
 
     // Turn on immediate publication of nodes with publication dates in the past
     // and repeat the tests. It is not needed to simulate cron runs now.
-    variable_set('scheduler_publish_past_date_scheduler_test', 'publish');
+    config_set('node.type.scheduler_test', 'scheduler_publish_past_date', 'publish');
     $node = $this->createUnapprovedNode();
     $this->assertNodeNotPublished($node->nid, 'An unapproved node is not published immediately after saving.');
     $this->approveNode($node->nid);
@@ -87,7 +78,7 @@ class SchedulerApiTestCase extends DrupalWebTestCase {
       'publish_on' => strtotime('-1 day'),
       'type' => 'scheduler_test',
     );
-    return $this->drupalCreateNode($settings);
+    return $this->backdropCreateNode($settings);
   }
 
   /**

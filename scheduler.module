@@ -173,7 +173,7 @@ function scheduler_list_access_callback($uid = NULL) {
  *   TRUE if we are using date_popup. FALSE otherwise.
  */
 function _scheduler_use_date_popup() {
-  return (module_exists('date') && config_get('scheduler.settings', 'scheduler_field_type') == 'date_popup');
+  return (module_exists('date') && config_get('scheduler.settings', 'field_type') == 'date_popup');
 }
 
 /**
@@ -518,7 +518,7 @@ function scheduler_node_validate($node, $form, &$form_state) {
     }
     elseif (!empty($node->publish_on['date'])) {
       $publishtime = $node->publish_on['date'];
-      $publishtime .= (!empty($node->publish_on['time'])) ? ' ' . $node->publish_on['time'] : '';
+      $publishtime .= ' ' . $node->publish_on['time'];
     }
   }
 
@@ -539,7 +539,7 @@ function scheduler_node_validate($node, $form, &$form_state) {
     }
     elseif (!empty($node->unpublish_on['date'])) {
       $unpublishtime = $node->unpublish_on['date'];
-      $unpublishtime .= (!empty($node->unpublish_on['time'])) ? ' ' . $node->unpublish_on['time'] : '';
+      $unpublishtime .= ' ' . $node->unpublish_on['time'];
     }
   }
 
@@ -607,7 +607,7 @@ function scheduler_node_presave($node) {
       // been prevented by other modules. Those modules have to display a
       // message themselves explaining why publication is denied.
       if ($publication_allowed) {
-        $date_format = config_get('scheduler.settings', 'scheduler_date_format');
+        $date_format = config_get('scheduler.settings', 'date_format');
         backdrop_set_message(t('This post is unpublished and will be published @publish_time.', array(
           '@publish_time' => format_date($node->publish_on, 'custom', $date_format),
         )), 'status', FALSE);
@@ -679,20 +679,22 @@ function scheduler_node_delete($node) {
  * Implements hook_node_type_delete().
  */
 function scheduler_node_type_delete($info) {
-  $variables = array();
+  $nodeconfig = config('node.type.' . $info->type);
+  $config_values = array();
 
-  $variables[] = "scheduler_publish_enable_" . $info->type;
-  $variables[] = "scheduler_publish_touch_" . $info->type;
-  $variables[] = "scheduler_publish_required_" . $info->type;
-  $variables[] = "scheduler_publish_revision_" . $info->type;
-  $variables[] = "scheduler_publish_past_date_" . $info->type;
-  $variables[] = "scheduler_unpublish_enable_" . $info->type;
-  $variables[] = "scheduler_unpublish_required_" . $info->type;
-  $variables[] = "scheduler_unpublish_revision_" . $info->type;
+  $config_values[] = "scheduler_publish_enable";
+  $config_values[] = "scheduler_publish_touch";
+  $config_values[] = "scheduler_publish_required";
+  $config_values[] = "scheduler_publish_revision";
+  $config_values[] = "scheduler_publish_past_date";
+  $config_values[] = "scheduler_unpublish_enable";
+  $config_values[] = "scheduler_unpublish_required";
+  $config_values[] = "scheduler_unpublish_revision";
 
-  foreach ($variables as $variable) {
-    variable_del($variable);
+  foreach ($config_values as $config_value) {
+    $nodeconfig->clear($config_value);
   }
+  $nodeconfig->save();
 }
 
 /**
@@ -763,7 +765,7 @@ function scheduler_cron_is_running() {
  *   TRUE if the cron url key is correct. FALSE otherwise.
  */
 function _scheduler_cron_access($cron_key) {
-  $valid_cron_key = config_get('scheduler.settings', 'scheduler_lightweight_access_key');
+  $valid_cron_key = config_get('scheduler.settings', 'lightweight_access_key');
   return $valid_cron_key == $cron_key;
 }
 
@@ -811,10 +813,10 @@ function scheduler_field_extra_fields() {
   $fields = array();
 
   foreach (node_type_get_types() as $type) {
-    $config = config('scheduler.settings');
-    $publishing_enabled = $config->get('scheduler_publish_enable_' . $type->type);
-    $unpublishing_enabled = $config->get('scheduler_unpublish_enable_' . $type->type);
-    $use_vertical_tabs = $config->get('scheduler_use_vertical_tabs_' . $type->type);
+    $nodeconfig = config('node.type.' . $type->type);
+    $publishing_enabled = $nodeconfig->get('scheduler_publish_enable');
+    $unpublishing_enabled = $nodeconfig->get('scheduler_unpublish_enable');
+    $use_vertical_tabs = $nodeconfig->get('scheduler_use_vertical_tabs');
 
     if (($publishing_enabled || $unpublishing_enabled) && !$use_vertical_tabs) {
       $fields['node'][$type->type]['form']['scheduler_settings'] = array(
@@ -836,7 +838,7 @@ function scheduler_field_extra_fields() {
  */
 function scheduler_preprocess_node(&$variables) {
   $node = $variables['node'];
-  $date_format = config_get('scheduler.settings', 'scheduler_date_format');
+  $date_format = config_get('scheduler.settings', 'date_format');
   if (!empty($node->publish_on) && $node->publish_on && is_numeric($node->publish_on)) {
     $variables['publish_on'] = format_date($node->publish_on, 'custom', $date_format);
   }
@@ -852,11 +854,11 @@ function scheduler_preprocess_node(&$variables) {
  * Feeds module.
  */
 function scheduler_feeds_processor_targets_alter(&$targets, $entity_type, $bundle_name) {
-  $config = config('scheduler.settings');
+  $nodeconfig = config('node.type.' . $bundle_name);
   // Scheduler module only works on nodes.
   if ($entity_type == 'node') {
-    $publishing_enabled = $config->get('scheduler_publish_enable_' . $bundle_name);
-    $unpublishing_enabled = $config->get('scheduler_unpublish_enable_' . $bundle_name);
+    $publishing_enabled = $nodeconfig->get('scheduler_publish_enable');
+    $unpublishing_enabled = $nodeconfig->get('scheduler_unpublish_enable');
 
     if ($publishing_enabled) {
       $targets['publish_on'] = array(

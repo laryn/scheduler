@@ -12,7 +12,6 @@ function scheduler_test_install() {
   $t = get_t();
 
   // Ensure the scheduler_test node type is available.
-  node_types_rebuild();
   $types = node_type_get_types();
 
   // Attach a body field to the node type.

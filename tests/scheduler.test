@@ -8,7 +8,7 @@
 /**
  * Provides common helper methods for Scheduler module tests.
  */
-abstract class SchedulerTestBase extends DrupalWebTestCase {
+abstract class SchedulerTestBase extends BackdropWebTestCase {
   /**
    * The profile to install as a basis for testing.
    *
@@ -29,14 +29,14 @@ abstract class SchedulerTestBase extends DrupalWebTestCase {
   public function commonSettings() {
 
     // Create a 'Basic Page' content type.
-    $this->drupalCreateContentType(array('type' => 'page', 'name' => t('Basic page')));
+    $this->backdropCreateContentType(array('type' => 'page', 'name' => t('Basic page')));
 
     // Create an administrator user.
     // 'access site reports' is required for admin/reports/dblog.
     // 'administer site configuration' is required for admin/reports/status.
     // 'access content overview' is required for admin/content.
     // 'view scheduled content' is required for admin/content/scheduler.
-    $this->adminUser = $this->drupalCreateUser(array(
+    $this->adminUser = $this->backdropCreateUser(array(
       'access content overview',
       'access site reports',
       'administer nodes',
@@ -51,9 +51,11 @@ abstract class SchedulerTestBase extends DrupalWebTestCase {
     ));
 
     // Add scheduler functionality to the page node type.
-    variable_set('scheduler_publish_enable_page', 1);
-    variable_set('scheduler_unpublish_enable_page', 1);
-    variable_set('scheduler_field_type', 'textfield');
+    $nodeconfig = config('node.type.page');
+    $nodeconfig->set('scheduler_publish_enable', 1);
+    $nodeconfig->set('scheduler_unpublish_enable', 1);
+    $nodeconfig->save();
+    config_set('scheduler.settings', 'field_type', 'textfield');
   }
 
   /**
@@ -62,7 +64,7 @@ abstract class SchedulerTestBase extends DrupalWebTestCase {
    * @param array $edit
    *   Node data, as if it was sent from the edit form.
    * @param bool $scheduler_cron_only
-   *   TRUE to only run Scheduler cron, FALSE to run default full Drupal cron.
+   *   TRUE to only run Scheduler cron, FALSE to run default full Backdrop cron.
    */
   public function helpTestScheduler(array $edit, $scheduler_cron_only = FALSE) {
     // Add a page.
@@ -71,16 +73,16 @@ abstract class SchedulerTestBase extends DrupalWebTestCase {
     $edit["title"] = $title;
     $body = $this->randomName();
     $edit["body[$langcode][0][value]"] = $body;
-    $this->drupalLogin($this->adminUser);
-    $this->drupalPost('node/add/page', $edit, t('Save'));
-    $node = $this->drupalGetNodeByTitle($title);
+    $this->backdropLogin($this->adminUser);
+    $this->backdropPost('node/add/page', $edit, t('Save'));
+    $node = $this->backdropGetNodeByTitle($title);
 
     // Verify that the scheduler table is not empty.
     $this->assertTrue(db_query_range('SELECT 1 FROM {scheduler}', 0, 1)->fetchField(), 'Scheduler table is not empty');
     // Show the specific page for an anonymous visitor, then assert that the
     // node is correctly published or unpublished.
-    $this->drupalLogout();
-    $this->drupalGet("node/{$node->nid}");
+    $this->backdropLogout();
+    $this->backdropGet("node/{$node->nid}");
     if (isset($edit['publish_on'])) {
       $key = 'publish_on';
       $this->assertResponse(403, t('Node is unpublished'));
@@ -104,7 +106,7 @@ abstract class SchedulerTestBase extends DrupalWebTestCase {
     $this->assertFalse(db_query_range('SELECT 1 FROM {scheduler}', 0, 1)->fetchField(), 'Scheduler table is empty');
     // Show the specific page for an anonymous visitor, then assert that the
     // node is correctly published or unpublished.
-    $this->drupalGet("node/{$node->nid}");
+    $this->backdropGet("node/{$node->nid}");
     if (isset($edit['publish_on'])) {
       $this->assertText($body, t('Node is published'));
     }
@@ -195,17 +197,6 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
   /**
    * {@inheritdoc}
    */
-  public static function getInfo() {
-    return array(
-      'name' => 'Scheduler functionality',
-      'description' => 'Tests the Scheduler functions which do not require other modules.',
-      'group' => 'Scheduler',
-    );
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function setUp() {
     parent::setUp('scheduler', 'dblog');
     parent::commonSettings();
@@ -215,7 +206,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    * Tests basic scheduling of content.
    *
    * @param bool $scheduler_cron_only
-   *   TRUE to only run Scheduler cron, FALSE to run default full Drupal cron.
+   *   TRUE to only run Scheduler cron, FALSE to run default full Backdrop cron.
    */
   public function testBasicScheduling($scheduler_cron_only = FALSE) {
     // Create node values. Set time to one hour in the future.
@@ -235,17 +226,17 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
   /**
    * Tests scheduler when not all cron tasks are run during cron.
    *
-   * Verify that we can set variable 'scheduler_cache_clear_all' so the page
+   * Verify that we can set variable 'cache_clear_all' so the page
    * cache is still cleared.
    *
    * @uses testScheduler()
    */
   public function testBasicSchedulingWithOnlySchedulerCron() {
     // Cache pages for anonymous users.
-    variable_set('cache', 1);
+    config_set('system.performance', 'cache', 1);
     // Instruct scheduler to clear caches itself, instead of relying on
     // system_cron.
-    variable_set('scheduler_cache_clear_all', 1);
+    config_set('scheduler.settings', 'cache_clear_all', 1);
     // Instruct the helper method to run only the scheduler cron.
     $scheduler_cron_only = TRUE;
 
@@ -257,10 +248,10 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    */
   public function testPastDates() {
     // Log in.
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
 
     // Create an unpublished page node.
-    $node = $this->drupalCreateNode(array('type' => 'page', 'status' => FALSE));
+    $node = $this->backdropCreateNode(array('type' => 'page', 'status' => FALSE));
 
     // Test the default behavior: an error message should be shown when the user
     // enters a publication date that is in the past.
@@ -268,12 +259,12 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
       'title' => $this->randomName(),
       'publish_on' => format_date(strtotime('-1 day', REQUEST_TIME), 'custom', 'Y-m-d H:i:s'),
     );
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
     $this->assertText("The 'publish on' date must be in the future", 'An error message is shown when the publication date is in the past and the "error" behavior is chosen.');
 
     // Test the 'publish' behavior: the node should be published immediately.
-    variable_set('scheduler_publish_past_date_page', 'publish');
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    config_set('node.type.page', 'scheduler_publish_past_date', 'publish');
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
     $this->assertNoText("The 'publish on' date must be in the future", 'No error message is shown when the publication date is in the past and the "publish" behavior is chosen.');
     $this->assertText(sprintf('%s %s has been updated.', 'Basic page', $edit['title']), 'The node is saved successfully when the publication date is in the past and the "publish" behavior is chosen.');
 
@@ -283,8 +274,8 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
 
     // Test the 'schedule' behavior: the node should be unpublished and become
     // published on the next cron run.
-    variable_set('scheduler_publish_past_date_page', 'schedule');
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    config_set('node.type.page', 'scheduler_publish_past_date', 'schedule');
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
     $this->assertNoText("The 'publish on' date must be in the future", 'No error message is shown when the publication date is in the past and the "schedule" behavior is chosen.');
     $this->assertText(sprintf('%s %s has been updated.', 'Basic page', check_plain($edit['title'])), 'The node is saved successfully when the publication date is in the past and the "schedule" behavior is chosen.');
     $this->assertText(sprintf('This post is unpublished and will be published %s.', $edit['publish_on']), 'The node is scheduled to be published when the publication date is in the past and the "schedule" behavior is chosen.');
@@ -310,7 +301,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
       'revision' => 0,
       'created' => $created,
     );
-    $node = $this->drupalCreateNode($settings);
+    $node = $this->backdropCreateNode($settings);
 
     // First test scheduled publication with revisioning disabled.
     $node = $this->schedule($node);
@@ -321,8 +312,8 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
     $this->assertRevisionCount($node->nid, 1, 'No new revision was created when a node was unpublished with revisioning disabled.');
 
     // Enable revisioning.
-    variable_set('scheduler_publish_revision_page', 1);
-    variable_set('scheduler_unpublish_revision_page', 1);
+    config_set('node.type.page', 'scheduler_publish_revision', 1);
+    config_set('node.type.page', 'scheduler_unpublish_revision', 1);
 
     // Test scheduled publication with revisioning enabled.
     $node = $this->schedule($node);
@@ -347,21 +338,21 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    * Tests if options can both be displayed as extra fields and vertical tabs.
    */
   public function testExtraFields() {
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
 
     // Test if the options are shown as vertical tabs by default.
-    $this->drupalGet('node/add/page');
+    $this->backdropGet('node/add/page');
     $this->assertTrue($this->xpath('//div[contains(@class, "vertical-tabs-panes")]/fieldset[@id = "edit-scheduler-settings"]'), 'By default the scheduler options are shown as a vertical tab.');
 
     // Test if the options are shown as extra fields when configured to do so.
-    variable_set('scheduler_use_vertical_tabs_page', 0);
-    $this->drupalGet('node/add/page');
+    config_set('node.type.page', 'scheduler_use_vertical_tabs', 0);
+    $this->backdropGet('node/add/page');
     $this->assertFalse($this->xpath('//div[contains(@class, "vertical-tabs-panes")]/fieldset[@id = "edit-scheduler-settings"]'), 'The scheduler options are not shown as a vertical tab when they are configured to show as an extra field.');
     $this->assertTrue($this->xpath('//fieldset[@id = "edit-scheduler-settings" and contains(@class, "collapsed")]'), 'The scheduler options are shown as a collapsed fieldset when they are configured to show as an extra field.');
 
     // Test the option to expand the fieldset.
-    variable_set('scheduler_expand_fieldset_page', 1);
-    $this->drupalGet('node/add/page');
+    config_set('node.type.page', 'scheduler_expand_fieldset', 1);
+    $this->backdropGet('node/add/page');
     $this->assertFalse($this->xpath('//div[contains(@class, "vertical-tabs-panes")]/fieldset[@id = "edit-scheduler-settings"]'), 'The scheduler options are not shown as a vertical tab when they are configured to show as an expanded fieldset.');
     $this->assertTrue($this->xpath('//fieldset[@id = "edit-scheduler-settings" and not(contains(@class, "collapsed"))]'), 'The scheduler options are shown as an expanded fieldset.');
   }
@@ -370,7 +361,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    * Tests creating and editing nodes with required scheduling enabled.
    */
   public function testRequiredScheduling() {
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
 
     // Define test scenarios with expected results.
     $test_cases = array(
@@ -503,12 +494,12 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
 
     foreach ($test_cases as $test_case) {
       // Enable required (un)publishing as stipulated by the test case.
-      variable_set('scheduler_publish_required_page', $test_case['required'] == 'publish');
-      variable_set('scheduler_unpublish_required_page', $test_case['required'] == 'unpublish');
+      config_set('node.type.page', 'scheduler_publish_required', $test_case['required'] == 'publish');
+      config_set('node.type.page', 'scheduler_unpublish_required', $test_case['required'] == 'unpublish');
 
       // Set the default node status, used when creating a new node.
       $node_options_page = !empty($test_case['status']) ? array('status') : array();
-      variable_set('node_options_page', $node_options_page);
+      config_set('node.type.page', 'options', $node_options_page);
 
       // To assist viewing and analysing the generated test result pages create
       // a text string showing all the test case parameters.
@@ -528,7 +519,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
           'status' => $test_case['status'],
           'publish_on' => !empty($test_case['scheduled']) ? strtotime('+ 1 day', REQUEST_TIME) : 0,
         );
-        $node = $this->drupalCreateNode($options);
+        $node = $this->backdropCreateNode($options);
       }
 
       // Make sure the publication date fields are empty so we can check if they
@@ -539,7 +530,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
         'unpublish_on' => '',
       );
       $path = $test_case['operation'] == 'add' ? 'node/add/page' : 'node/' . $node->nid . '/edit';
-      $this->drupalPost($path, $edit, t('Save'));
+      $this->backdropPost($path, $edit, t('Save'));
 
       // Check for the expected result.
       switch ($test_case['expected']) {
@@ -560,10 +551,13 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    */
   public function testNonEnabledType() {
     // Create a 'Non-enabled' content type.
-    $this->drupalCreateContentType(array('type' => 'story', 'name' => t('Story Book')));
+    $this->backdropCreateContentType(array(
+      'type' => 'story',
+      'name' => t('Story Book'),
+    ));
 
     // Create a user who can add and edit story content, and log in.
-    $this->drupalLogin($this->drupalCreateUser(array(
+    $this->backdropLogin($this->backdropCreateUser(array(
       'access content overview',
       'access site reports',
       'create story content',
@@ -580,8 +574,10 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
       // The first test case specifically checks the behavior of the default
       // unchanged settings, so only change these settings for later runs.
       if ($id > 0) {
-        variable_set('scheduler_publish_enable_story', $publishing_enabled);
-        variable_set('scheduler_unpublish_enable_story', $unpublishing_enabled);
+        $nodeconfig = config('node.type.story');
+        $nodeconfig->set('scheduler_publish_enable', $publishing_enabled);
+        $nodeconfig->set('scheduler_unpublish_enable', $unpublishing_enabled);
+        $nodeconfig->save();
       }
 
       // Create info string to show what combinations are being tested.
@@ -591,7 +587,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
 
       // Check that the field(s) are displayed only for the correct settings.
       $title = $id . 'a - ' . $info;
-      $this->drupalGet('node/add/story');
+      $this->backdropGet('node/add/story');
       if ($publishing_enabled) {
         $this->assertFieldByName('publish_on', '', "The Publish-on field is shown: $title");
       }
@@ -608,18 +604,18 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
 
       // When publishing and/or unpublishing are not enabled but the 'required'
       // setting remains on, the node must be able to be saved without a date.
-      variable_set('scheduler_publish_required_story', !$publishing_enabled);
-      variable_set('scheduler_unpublish_required_story', !$unpublishing_enabled);
+      config_set('node.type.story', 'scheduler_publish_required', !$publishing_enabled);
+      config_set('node.type.story', 'scheduler_unpublish_required', !$unpublishing_enabled);
 
-      $this->drupalPost('node/add/story', array('title' => $title), t('Save'));
+      $this->backdropPost('node/add/story', array('title' => $title), t('Save'));
       // Check that the node has saved OK.
       $string = sprintf('%s %s has been created.', 'Story Book', check_plain($title));
       $this->assertText($string, "Node added: $title");
 
       // Check that the node can be editted and saved again.
-      $node = $this->drupalGetNodeByTitle($title);
+      $node = $this->backdropGetNodeByTitle($title);
       if ($node) {
-        $this->drupalPost('node/' . $node->nid . '/edit', array(), t('Save'));
+        $this->backdropPost('node/' . $node->nid . '/edit', array(), t('Save'));
         $string = sprintf('%s %s has been updated.', 'Story Book', check_plain($title));
         $this->assertText($string, "Node updated: $title");
       }
@@ -637,11 +633,11 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
         'type' => 'story',
         'publish_on' => strtotime('- 2 min', REQUEST_TIME),
       );
-      $node = $this->drupalCreateNode($edit);
+      $node = $this->backdropCreateNode($edit);
 
       // Run cron and display the dblog.
       $this->cronRun();
-      $this->drupalGet('admin/reports/dblog');
+      $this->backdropGet('admin/reports/dblog');
 
       // Reload the node.
       $node = node_load($node->nid, NULL, TRUE);
@@ -661,11 +657,11 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
         'type' => 'story',
         'unpublish_on' => strtotime('- 2 min', REQUEST_TIME),
       );
-      $node = $this->drupalCreateNode($edit);
+      $node = $this->backdropCreateNode($edit);
 
       // Run cron and display the dblog.
       $this->cronRun();
-      $this->drupalGet('admin/reports/dblog');
+      $this->backdropGet('admin/reports/dblog');
 
       // Reload the node.
       $node = node_load($node->nid, NULL, TRUE);
@@ -679,8 +675,8 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
 
       // Display the full content list and the scheduled list. Calls to these
       // pages are for information and debug only. They could be removed.
-      $this->drupalGet('admin/content');
-      $this->drupalGet('admin/content/scheduler');
+      $this->backdropGet('admin/content');
+      $this->backdropGet('admin/content/scheduler');
 
     }
 
@@ -728,37 +724,37 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    * tests. This test checks validation when the two fields interact.
    */
   public function testValidationDuringEdit() {
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
 
     // Set unpublishing to be required.
-    variable_set('scheduler_unpublish_required_page', TRUE);
+    config_set('node.type.page', 'scheduler_unpublish_required', TRUE);
 
     // Create an unpublished page node, then edit the node and check that if a
     // publish-on date is entered then an unpublish-on date is also needed.
-    $node = $this->drupalCreateNode(array('type' => 'page', 'status' => FALSE));
+    $node = $this->backdropCreateNode(array('type' => 'page', 'status' => FALSE));
     $edit = array(
       'publish_on' => date('Y-m-d H:i:s', strtotime('+1 day', REQUEST_TIME)),
     );
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
     $this->assertText("If you set a 'publish-on' date then you must also set an 'unpublish-on' date.", 'Validation prevents entering a publish-on date with no unpublish-on date if unpublishing is required.');
 
     // Create an unpublished page node, then edit the node and check that if the
     // status is changed to published, then an unpublish-on date is also needed.
-    $node = $this->drupalCreateNode(array('type' => 'page', 'status' => FALSE));
+    $node = $this->backdropCreateNode(array('type' => 'page', 'status' => FALSE));
     $edit = array(
       'status' => TRUE,
     );
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
     $this->assertText("To publish this node you must also set an 'unpublish-on' date.", 'Validation prevents publishing the node directly without an unpublish-on date if unpublishing is required.');
 
     // Create an unpublished page node, edit the node and check that if both
     // dates are entered then the unpublish date is later than the publish date.
-    $node = $this->drupalCreateNode(array('type' => 'page', 'status' => FALSE));
+    $node = $this->backdropCreateNode(array('type' => 'page', 'status' => FALSE));
     $edit = array(
       'publish_on' => date('Y-m-d H:i:s', strtotime('+2 day', REQUEST_TIME)),
       'unpublish_on' => date('Y-m-d H:i:s', strtotime('+1 day', REQUEST_TIME)),
     );
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
     $this->assertText("The 'unpublish on' date must be later than the 'publish on' date.", 'Validation prevents entering an unpublish-on date which is earlier than the publish-on date.');
 
   }
@@ -768,7 +764,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    */
   public function testScheduledNodeDelete() {
     // Log in.
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
 
     // 1. Test if it is possible to delete a node that does not have a
     // publication date set, when scheduled publishing is required, and likewise
@@ -776,23 +772,23 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
     // @see https://drupal.org/node/1614880
     //
     // Create a published and an unpublished node, both without scheduling.
-    $published_node = $this->drupalCreateNode(array('type' => 'page', 'status' => 1));
-    $unpublished_node = $this->drupalCreateNode(array('type' => 'page', 'status' => 0));
+    $published_node = $this->backdropCreateNode(array('type' => 'page', 'status' => 1));
+    $unpublished_node = $this->backdropCreateNode(array('type' => 'page', 'status' => 0));
 
     // Make scheduled publishing and unpublishing required.
-    variable_set('scheduler_publish_required_page', TRUE);
-    variable_set('scheduler_unpublish_required_page', TRUE);
+    config_set('node.type.page', 'scheduler_publish_required', TRUE);
+    config_set('node.type.page', 'scheduler_unpublish_required', TRUE);
 
     // Check that deleting the nodes does not throw form validation errors.
     // The text 'error message' is used in a header h2 html tag which is
     // normally made hidden from browsers but will be in the page source.
     // It is also good when testing for the absense of something to also test
     // for the presence of text, hence the second assertion for each check.
-    $this->drupalPost('node/' . $published_node->nid . '/edit', array(), t('Delete'));
+    $this->backdropPost('node/' . $published_node->nid . '/edit', array(), t('Delete'));
     $this->assertNoText('Error message', 'No error messages are shown when trying to delete a published node with no scheduling information.');
     $this->assertText('Are you sure you want to delete', 'The deletion warning message is shown immediately when trying to delete a published node with no scheduling information.');
 
-    $this->drupalPost('node/' . $unpublished_node->nid . '/edit', array(), t('Delete'));
+    $this->backdropPost('node/' . $unpublished_node->nid . '/edit', array(), t('Delete'));
     $this->assertNoText('Error message', 'No error messages are shown when trying to delete an unpublished node with no scheduling information.');
     $this->assertText('Are you sure you want to delete', 'The deletion warning message is shown immediately when trying to delete an unpublished node with no scheduling information.');
 
@@ -806,22 +802,22 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
       'status' => TRUE,
       'unpublish_on' => strtotime('- 2 day', REQUEST_TIME),
     );
-    $published_node_past = $this->drupalCreateNode($values);
+    $published_node_past = $this->backdropCreateNode($values);
 
     $values = array(
       'type' => 'page',
       'status' => FALSE,
       'publish_on' => strtotime('- 2 day', REQUEST_TIME),
     );
-    $unpublished_node_past = $this->drupalCreateNode($values);
+    $unpublished_node_past = $this->backdropCreateNode($values);
 
     // Attempt to delete the published node and check for no validation error.
-    $this->drupalPost('node/' . $published_node_past->nid . '/edit', array(), t('Delete'));
+    $this->backdropPost('node/' . $published_node_past->nid . '/edit', array(), t('Delete'));
     $this->assertNoText('Error message', 'No error messages are shown when trying to delete a node with an unpublish date in the past.');
     $this->assertText('Are you sure you want to delete', 'The deletion warning message is shown immediately when trying to delete a node with an unpublish date in the past.');
 
     // Attempt to delete the unpublished node and check for no validation error.
-    $this->drupalPost('node/' . $unpublished_node_past->nid . '/edit', array(), t('Delete'));
+    $this->backdropPost('node/' . $unpublished_node_past->nid . '/edit', array(), t('Delete'));
     $this->assertNoText('Error message', 'No error messages are shown when trying to delete a node with a publish date in the past.');
     $this->assertText('Are you sure you want to delete', 'The deletion warning message is shown immediately when trying to delete a node with a publish date in the past.');
 
@@ -836,27 +832,27 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    */
   public function testMetaInformation() {
     // Log in.
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
 
     // Create a published node without scheduling.
-    $published_node = $this->drupalCreateNode(array('type' => 'page', 'status' => 1));
-    $this->drupalGet('node/' . $published_node->nid);
+    $published_node = $this->backdropCreateNode(array('type' => 'page', 'status' => 1));
+    $this->backdropGet('node/' . $published_node->nid);
 
     // Since we did not set an unpublish date, there should be no X-Robots-Tag
     // header on the response.
-    $this->assertFalse($this->drupalGetHeader('X-Robots-Tag'), 'X-Robots-Tag is not present when no unpublish date is set.');
+    $this->assertFalse($this->backdropGetHeader('X-Robots-Tag'), 'X-Robots-Tag is not present when no unpublish date is set.');
 
     // Set a scheduler unpublish date on the node.
     $unpublish_date = strtotime('+1 day', REQUEST_TIME);
     $edit = array(
       'unpublish_on' => format_date($unpublish_date, 'custom', 'Y-m-d H:i:s'),
     );
-    $this->drupalPost('node/' . $published_node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $published_node->nid . '/edit', $edit, t('Save'));
 
     // The node page should now have an X-Robots-Tag header with an
     // unavailable_after-directive and RFC850 date- and time-value.
-    $this->drupalGet('node/' . $published_node->nid);
-    $robots_tag = $this->drupalGetHeader('X-Robots-Tag');
+    $this->backdropGet('node/' . $published_node->nid);
+    $robots_tag = $this->backdropGetHeader('X-Robots-Tag');
     $this->assertEqual($robots_tag, 'unavailable_after: ' . date(DATE_RFC850, $unpublish_date), 'X-Robots-Tag is present with correct timestamp derived from unpublish_on date.');
   }
 
@@ -866,48 +862,48 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
   public function testPermissions() {
     // Create a user who can add the content type but who does not have the
     // permission to use the scheduler functionality.
-    $webUser = $this->drupalCreateUser(array(
+    $webUser = $this->backdropCreateUser(array(
       'access content',
       'create page content',
       'edit own page content',
       'view own unpublished content',
       'administer nodes',
     ));
-    $this->drupalLogin($webUser);
+    $this->backdropLogin($webUser);
 
     // Set the defaults for a new node. Nothing in array means all OFF for
     // 'status', 'promote' and 'sticky'.
-    variable_set('node_options_page', array());
+    config_set('node.type.page', 'options', array());
 
     // Check that neither of the fields are displayed when creating a node.
-    $this->drupalGet('node/add/page');
+    $this->backdropGet('node/add/page');
     $this->assertNoFieldByName('publish_on', '', 'The Publish-on field is not shown for users who do not have permission to schedule content');
     $this->assertNoFieldByName('unpublish_on', '', 'The Unpublish-on field is not shown for users who do not have permission to schedule content');
 
     // Initially run tests when publishing and unpublishing are not required.
-    variable_set('scheduler_publish_required_page', FALSE);
-    variable_set('scheduler_unpublish_required_page', FALSE);
+    config_set('node.type.page', 'scheduler_publish_required', FALSE);
+    config_set('node.type.page', 'scheduler_unpublish_required', FALSE);
 
     // Check that a new node can be saved and published.
     $title = $this->randomString(15);
-    $this->drupalPost('node/add/page', array('title' => $title, 'status' => TRUE), t('Save'));
+    $this->backdropPost('node/add/page', array('title' => $title, 'status' => TRUE), t('Save'));
     // check_plain() is required because the title may have % & or ' in it.
     // Could use randomName() to get round this instead but it is good to use
     // the full variety of characters available in randomString.
     $this->assertText(sprintf('%s %s has been created.', 'Basic page', check_plain($title)), 'A node can be created and published when the user does not have scheduler permissions, and scheduling is not required.');
-    $node = $this->drupalGetNodeByTitle($title);
+    $node = $this->backdropGetNodeByTitle($title);
     $this->assertTrue($node->status, 'The new node is published.');
 
     // Check that a new node can be saved as unpublished.
     $title = $this->randomString(15);
-    $this->drupalPost('node/add/page', array('title' => $title, 'status' => FALSE), t('Save'));
+    $this->backdropPost('node/add/page', array('title' => $title, 'status' => FALSE), t('Save'));
     $this->assertText(sprintf('%s %s has been created.', 'Basic page', check_plain($title)), 'A node can be created and saved as unpublished when the user does not have scheduler permissions, and scheduling is not required.');
-    $node = $this->drupalGetNodeByTitle($title);
+    $node = $this->backdropGetNodeByTitle($title);
     $this->assertFalse($node->status, 'The new node is unpublished.');
 
     // Set publishing and unpublishing to required, to make it a stronger test.
-    variable_set('scheduler_publish_required_page', TRUE);
-    variable_set('scheduler_unpublish_required_page', TRUE);
+    config_set('node.type.page', 'scheduler_publish_required', TRUE);
+    config_set('node.type.page', 'scheduler_unpublish_required', TRUE);
 
     // @todo Add tests when scheduled publishing and unpublishing are required.
     // Cannot be done until we make a decision on what 'required'  means.
@@ -920,7 +916,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    */
   public function testTokenReplacement() {
     // Log in.
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
 
     // Define timestamps for consistent use when repeated throughout this test.
     $publish_on_timestamp = REQUEST_TIME + 3600;
@@ -931,7 +927,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
       'type' => 'page',
       'status' => FALSE,
     );
-    $node = $this->drupalCreateNode($settings);
+    $node = $this->backdropCreateNode($settings);
 
     // Create array of test case data.
     $test_cases = array(
@@ -1007,7 +1003,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    */
   public function testAlterCreationDate() {
     // Ensure nodes with past dates will be scheduled not published immediately.
-    variable_set('scheduler_publish_past_date_page', 'schedule');
+    config_set('node.type.page', 'scheduler_publish_past_date', 'schedule');
 
     // Create a node with a 'created' date two days in the past.
     $created = strtotime('-2 day', REQUEST_TIME);
@@ -1016,7 +1012,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
       'created' => $created,
       'status' => FALSE,
     );
-    $node = $this->drupalCreateNode($settings);
+    $node = $this->backdropCreateNode($settings);
     // Check that the node is not published.
     $this->assertFalse($node->status, 'Before cron, the node is not published.');
 
@@ -1028,7 +1024,7 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
     $this->assertEqual($created, $created_after_cron, 'The node creation date is not changed by default.');
 
     // Set option to change the created date to match the publish_on date.
-    variable_set('scheduler_publish_touch_page', TRUE);
+    config_set('node.type.page', 'scheduler_publish_touch', TRUE);
 
     // Schedule the node again and run cron.
     $node = $this->schedule($node, 'publish');
@@ -1042,23 +1038,23 @@ class SchedulerFunctionalTest extends SchedulerTestBase {
    */
   public function testLightweightCronRun() {
     // Run the lightweight cron anonymously without any cron key.
-    $this->drupalGet('scheduler/cron');
+    $this->backdropGet('scheduler/cron');
     $this->assertResponse(200, 'With no cron key (default) scheduler/cron returns "200 OK"');
 
     // Generate and set a cron key.
     $cron_key = substr(md5(rand()), 0, 20);
-    variable_set('scheduler_lightweight_access_key', $cron_key);
+    config_set('scheduler.settings', 'lightweight_access_key', $cron_key);
 
     // Run the lightweight cron without any cron key.
-    $this->drupalGet('scheduler/cron');
+    $this->backdropGet('scheduler/cron');
     $this->assertResponse(403, 'After creating a cron key scheduler/cron returns "403 Not Authorized"');
 
     // Run the lightweight cron anonymously with a random (wrong) cron key.
-    $this->drupalGet('scheduler/cron/' . substr(md5(rand()), 0, 20));
+    $this->backdropGet('scheduler/cron/' . substr(md5(rand()), 0, 20));
     $this->assertResponse(403, 'scheduler/cron/{wrong key} returns "403 Not Authorized"');
 
     // Run the lightweight cron anonymously with the valid cron key.
-    $this->drupalGet('scheduler/cron/' . $cron_key);
+    $this->backdropGet('scheduler/cron/' . $cron_key);
     $this->assertResponse(200, 'scheduler/cron/{correct key} returns "200 OK"');
   }
 
@@ -1072,17 +1068,6 @@ class SchedulerDateModuleTest extends SchedulerTestBase {
   /**
    * {@inheritdoc}
    */
-  public static function getInfo() {
-    return array(
-      'name' => 'Scheduler and Date module',
-      'description' => 'Tests the functionality which needs the Date module.',
-      'group' => 'Scheduler',
-    );
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function setUp() {
     parent::setUp('date', 'date_popup', 'scheduler');
     parent::commonSettings();
@@ -1092,7 +1077,7 @@ class SchedulerDateModuleTest extends SchedulerTestBase {
    * Test the default time functionality.
    */
   public function testDefaultTime() {
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
 
     // Perform the checks twice, first using plain text entry then with date
     // popup calendars.
@@ -1116,12 +1101,12 @@ class SchedulerDateModuleTest extends SchedulerTestBase {
       // For testing we use an offset of 6 hours 30 minutes (23400 seconds).
       // First test with the "date only" functionality disabled.
       $settings = array(
-        'scheduler_date_format' => 'Y-m-d H:i:s',
-        'scheduler_default_time' => '6:30',
-        'scheduler_field_type' => $field_type,
-        'scheduler_allow_date_only' => FALSE,
+        'date_format' => 'Y-m-d H:i:s',
+        'default_time' => '6:30',
+        'field_type' => $field_type,
+        'allow_date_only' => FALSE,
       );
-      $this->drupalPost('admin/config/content/scheduler', $settings, t('Save configuration'));
+      $this->backdropPost('admin/config/content/scheduler', $settings, t('Save configuration'));
 
       // Verify that entering a time is required.
       $edit = array(
@@ -1129,16 +1114,16 @@ class SchedulerDateModuleTest extends SchedulerTestBase {
         $publish_date_field => date('Y-m-d', strtotime('+1 day', REQUEST_TIME)),
         $unpublish_date_field => date('Y-m-d', strtotime('+2 day', REQUEST_TIME)),
       );
-      $this->drupalPost('node/add/page', $edit, t('Save'));
+      $this->backdropPost('node/add/page', $edit, t('Save'));
       $this->assertText($publish_validation_message, 'Validation error message is shown correctly. By default it is required to enter a time when scheduling content for publication.');
       $this->assertText($unpublish_validation_message, 'Validation error message is shown correctly. By default it is required to enter a time when scheduling content for unpublication.');
 
       // Allow the user to enter only the date.
-      $settings = array('scheduler_allow_date_only' => TRUE);
-      $this->drupalPost('admin/config/content/scheduler', $settings, t('Save configuration'));
+      $settings = array('allow_date_only' => TRUE);
+      $this->backdropPost('admin/config/content/scheduler', $settings, t('Save configuration'));
 
       // Check that the correct default time is added to the scheduled date.
-      $this->drupalPost('node/add/page', $edit, t('Save'));
+      $this->backdropPost('node/add/page', $edit, t('Save'));
       $this->assertNoText("The 'publish on' value does not match the expected format of", 'If the default time option is enabled the user can skip the time when scheduling content for publication.');
       $this->assertNoText("The 'unpublish on' value does not match the expected format of", 'If the default time option is enabled the user can skip the time when scheduling content for unpublication.');
       $publish_time = date('Y-m-d H:i:s', strtotime('tomorrow', REQUEST_TIME) + 23400);
@@ -1152,10 +1137,10 @@ class SchedulerDateModuleTest extends SchedulerTestBase {
       // Check that it is not possible for the admin to enter a date format
       // without a time if the 'date only' option is not enabled.
       $edit = array(
-        'scheduler_date_format' => 'Y-m-d',
-        'scheduler_allow_date_only' => FALSE,
+        'date_format' => 'Y-m-d',
+        'allow_date_only' => FALSE,
       );
-      $this->drupalPost('admin/config/content/scheduler', $edit, t('Save configuration'));
+      $this->backdropPost('admin/config/content/scheduler', $edit, t('Save configuration'));
       $this->assertText('You must either include a time within the date format or enable the date-only option.', format_string('It is not possible to enter a date format without a time if the "date only" option is not enabled and the field type is set to %field_type.', array('%field_type' => $field_type)));
     }
   }
@@ -1164,7 +1149,7 @@ class SchedulerDateModuleTest extends SchedulerTestBase {
    * Tests configuration of different date formats with the Date Popup field.
    */
   public function testDatePopupFormats() {
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
 
     // Define some date formats to test.
     $test_cases = array(
@@ -1200,10 +1185,10 @@ class SchedulerDateModuleTest extends SchedulerTestBase {
     );
     foreach ($test_cases as $date_format => $expected_result) {
       $edit = array(
-        'scheduler_date_format' => $date_format,
-        'scheduler_field_type' => 'date_popup',
+        'date_format' => $date_format,
+        'field_type' => 'date_popup',
       );
-      $this->drupalPost('admin/config/content/scheduler', $edit, t('Save configuration'));
+      $this->backdropPost('admin/config/content/scheduler', $edit, t('Save configuration'));
       $message = format_string('When using date popups the date format %format is @expected', array(
         '%format' => $date_format,
         '@expected' => $expected_result ? 'allowed' : 'not allowed.',
@@ -1237,23 +1222,12 @@ class SchedulerRulesTest extends SchedulerTestBase {
   /**
    * {@inheritdoc}
    */
-  public static function getInfo() {
-    return array(
-      'name' => 'Scheduler and Rules Integration',
-      'description' => 'Tests the Rules actions and conditions provided by Scheduler.',
-      'group' => 'Scheduler',
-    );
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function setUp() {
     parent::setUp('scheduler', 'dblog', 'rules');
     parent::commonSettings();
 
     // Create a published node.
-    $this->node = $this->drupalCreateNode(array(
+    $this->node = $this->backdropCreateNode(array(
       'title' => 'Initial Test Node',
       'type' => 'page',
       'uid' => $this->adminUser->uid,
@@ -1265,7 +1239,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
    * Tests the four actions which set and remove the Scheduler dates.
    */
   public function testRulesActions() {
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
     $node = $this->node;
 
     $message1 = 'RULE 1. Set Publish-on date.';
@@ -1276,7 +1250,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
         'data:select' => 'node:node',
         'date' => REQUEST_TIME + 1800,
       )))
-      ->action('drupal_message', array('message' => $message1));
+      ->action('backdrop_message', array('message' => $message1));
     // Check access and integrity, then save the rule.
     $rule->access();
     $rule->integrityCheck();
@@ -1288,7 +1262,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
       ->condition(rules_condition('data_is', array('data:select' => 'node:title', 'value' => 'Rule 2')))
       ->action(rules_action('scheduler_remove_publish_date_action', array('data:select' => 'node:node')))
       ->action('node_publish')
-      ->action('drupal_message', array('message' => $message2));
+      ->action('backdrop_message', array('message' => $message2));
     $rule->access();
     $rule->integrityCheck();
     $rule->save('rule_id_2', $message2);
@@ -1301,7 +1275,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
         'data:select' => 'node:node',
         'date' => REQUEST_TIME + 1800,
       )))
-      ->action('drupal_message', array('message' => $message3));
+      ->action('backdrop_message', array('message' => $message3));
     $rule->access();
     $rule->integrityCheck();
     $rule->save('rule_id_3', $message3);
@@ -1311,13 +1285,13 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $rule->event('node_update')
       ->condition(rules_condition('data_is', array('data:select' => 'node:title', 'value' => 'Rule 4')))
       ->action(rules_action('scheduler_remove_unpublish_date_action', array('data:select' => 'node:node')))
-      ->action('drupal_message', array('message' => $message4));
+      ->action('backdrop_message', array('message' => $message4));
     $rule->access();
     $rule->integrityCheck();
     $rule->save('rule_id_4', $message4);
 
     // Edit node without changing title, then reload the node.
-    $this->drupalPost('node/' . $node->nid . '/edit', array(), t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', array(), t('Save'));
     $node = node_load($node->nid, NULL, TRUE);
 
     // Check that neither of the rules are triggered, no publish and unpublish
@@ -1330,11 +1304,11 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $this->assertTrue(empty($node->unpublish_on), 'Node is not scheduled for unpublishing.');
     $this->assertTrue($node->status, 'Node remains published for title: "' . $node->title . '".');
 
-    $this->drupalGet('admin/reports/dblog');
-    $this->drupalGet('admin/content/scheduler');
+    $this->backdropGet('admin/reports/dblog');
+    $this->backdropGet('admin/content/scheduler');
 
     // Edit the node, triggering rule 1, then reload the node.
-    $this->drupalPost('node/' . $node->nid . '/edit', array('title' => 'Rule 1'), t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', array('title' => 'Rule 1'), t('Save'));
     $node = node_load($node->nid, NULL, TRUE);
 
     // Check that only rule 1 is triggered.
@@ -1347,11 +1321,11 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $this->assertTrue(empty($node->unpublish_on), 'Node is not scheduled for unpublishing.');
     $this->assertFalse($node->status, 'Node is now unpublished for title: "' . $node->title . '".');
 
-    $this->drupalGet('admin/reports/dblog');
-    $this->drupalGet('admin/content/scheduler');
+    $this->backdropGet('admin/reports/dblog');
+    $this->backdropGet('admin/content/scheduler');
 
     // Edit the node, triggering rule 2, then reload the node.
-    $this->drupalPost('node/' . $node->nid . '/edit', array('title' => 'Rule 2'), t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', array('title' => 'Rule 2'), t('Save'));
     $node = node_load($node->nid, NULL, TRUE);
 
     // Check that only rule 2 is triggered.
@@ -1364,11 +1338,11 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $this->assertTrue(empty($node->unpublish_on), 'Node is not scheduled for unpublishing.');
     $this->assertTrue($node->status, 'Node is now published for title: "' . $node->title . '".');
 
-    $this->drupalGet('admin/reports/dblog');
-    $this->drupalGet('admin/content/scheduler');
+    $this->backdropGet('admin/reports/dblog');
+    $this->backdropGet('admin/content/scheduler');
 
     // Edit the node, triggering rule 3, then reload the node.
-    $this->drupalPost('node/' . $node->nid . '/edit', array('title' => 'Rule 3'), t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', array('title' => 'Rule 3'), t('Save'));
     $node = node_load($node->nid, NULL, TRUE);
 
     // Check that only rule 3 is triggered.
@@ -1381,11 +1355,11 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $this->assertTrue(!empty($node->unpublish_on), 'Node is scheduled for unpublishing.');
     $this->assertTrue($node->status, 'Node remains published for title: "' . $node->title . '".');
 
-    $this->drupalGet('admin/reports/dblog');
-    $this->drupalGet('admin/content/scheduler');
+    $this->backdropGet('admin/reports/dblog');
+    $this->backdropGet('admin/content/scheduler');
 
     // Edit the node, triggering rule 4, then reload the node.
-    $this->drupalPost('node/' . $node->nid . '/edit', array('title' => 'Rule 4'), t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', array('title' => 'Rule 4'), t('Save'));
     $node = node_load($node->nid, NULL, TRUE);
 
     // Check that only rule 4 is triggered.
@@ -1398,15 +1372,15 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $this->assertTrue(empty($node->unpublish_on), 'Node is not scheduled for unpublishing.');
     $this->assertTrue($node->status, 'Node remains published for title: "' . $node->title . '".');
 
-    $this->drupalGet('admin/reports/dblog');
-    $this->drupalGet('admin/content/scheduler');
+    $this->backdropGet('admin/reports/dblog');
+    $this->backdropGet('admin/content/scheduler');
   }
 
   /**
    * Tests the two conditions for a content type being enabled for scheduling.
    */
   public function testRulesConditionsNodetypeEnabled() {
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
     $node = $this->node;
 
     // Create a reaction rule to display a message when viewing a node of a type
@@ -1416,7 +1390,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $rule = rules_reaction_rule();
     $rule->event('node_view')
       ->condition(rules_condition('scheduler_condition_publishing_is_enabled', array('data:select' => 'node:node')))
-      ->action('drupal_message', array('message' => $message1));
+      ->action('backdrop_message', array('message' => $message1));
     // Check access and integrity, then save the rule.
     $rule->access();
     $rule->integrityCheck();
@@ -1428,7 +1402,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $rule = rules_reaction_rule();
     $rule->event('node_view')
       ->condition(rules_condition('scheduler_condition_unpublishing_is_enabled', array('data:select' => 'node:node')))
-      ->action('drupal_message', array('message' => $message2));
+      ->action('backdrop_message', array('message' => $message2));
     $rule->access();
     $rule->integrityCheck();
     $rule->save('rule_id_2', $message2);
@@ -1439,7 +1413,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $rule = rules_reaction_rule();
     $rule->event('node_view')
       ->condition(rules_condition('scheduler_condition_publishing_is_enabled', array('data:select' => 'node:node'))->negate())
-      ->action('drupal_message', array('message' => $message3));
+      ->action('backdrop_message', array('message' => $message3));
     $rule->access();
     $rule->integrityCheck();
     $rule->save('rule_id_3', $message3);
@@ -1450,30 +1424,30 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $rule = rules_reaction_rule();
     $rule->event('node_view')
       ->condition(rules_condition('scheduler_condition_unpublishing_is_enabled', array('data:select' => 'node:node'))->negate())
-      ->action('drupal_message', array('message' => $message4));
+      ->action('backdrop_message', array('message' => $message4));
     $rule->access();
     $rule->integrityCheck();
     $rule->save('rule_id_4', $message4);
 
     // View the node and check the default position - that the node type is
     // enabled for both publishing and unpublishing.
-    $this->drupalGet('node/' . $node->nid);
+    $this->backdropGet('node/' . $node->nid);
     $this->assertText($message1, '"' . $message1 . '" is shown');
     $this->assertText($message2, '"' . $message2 . '" is shown');
     $this->assertNoText($message3, '"' . $message3 . '" is not shown');
     $this->assertNoText($message4, '"' . $message4 . '" is not shown');
 
     // Turn off scheduled publishing for the node type and check the rules.
-    variable_set('scheduler_publish_enable_page', FALSE);
-    $this->drupalGet('node/' . $node->nid);
+    config_set('node.type.page', 'scheduler_publish_enable', FALSE);
+    $this->backdropGet('node/' . $node->nid);
     $this->assertNoText($message1, '"' . $message1 . '" is not shown');
     $this->assertText($message2, '"' . $message2 . '" is shown');
     $this->assertText($message3, '"' . $message3 . '" is shown');
     $this->assertNoText($message4, '"' . $message4 . '" is not shown');
 
     // Turn off scheduled unpublishing for the node type and the check again.
-    variable_set('scheduler_unpublish_enable_page', FALSE);
-    $this->drupalGet('node/' . $node->nid);
+    config_set('node.type.page', 'scheduler_unpublish_enable', FALSE);
+    $this->backdropGet('node/' . $node->nid);
     $this->assertNoText($message1, '"' . $message1 . '" is not shown');
     $this->assertNoText($message2, '"' . $message2 . '" is not shown');
     $this->assertText($message3, '"' . $message3 . '" is shown');
@@ -1484,7 +1458,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
    * Tests the two conditions for whether a node is scheduled.
    */
   public function testRulesConditionsNodeIsScheduled() {
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
     $node = $this->node;
 
     // Create a reaction rule to display a message when a node is updated and
@@ -1493,7 +1467,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $rule = rules_reaction_rule();
     $rule->event('node_update')
       ->condition(rules_condition('scheduler_condition_node_is_scheduled_for_publishing', array('data:select' => 'node:node'))->negate())
-      ->action('drupal_message', array('message' => $message5));
+      ->action('backdrop_message', array('message' => $message5));
     $rule->access();
     $rule->integrityCheck();
     $rule->save('rule_id_5', $message5);
@@ -1504,7 +1478,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $rule = rules_reaction_rule();
     $rule->event('node_update')
       ->condition(rules_condition('scheduler_condition_node_is_scheduled_for_unpublishing', array('data:select' => 'node:node'))->negate())
-      ->action('drupal_message', array('message' => $message6));
+      ->action('backdrop_message', array('message' => $message6));
     $rule->access();
     $rule->integrityCheck();
     $rule->save('rule_id_6', $message6);
@@ -1515,7 +1489,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $rule = rules_reaction_rule();
     $rule->event('node_update')
       ->condition(rules_condition('scheduler_condition_node_is_scheduled_for_publishing', array('data:select' => 'node:node')))
-      ->action('drupal_message', array('message' => $message7));
+      ->action('backdrop_message', array('message' => $message7));
     $rule->access();
     $rule->integrityCheck();
     $rule->save('rule_id_7', $message7);
@@ -1526,13 +1500,13 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $rule = rules_reaction_rule();
     $rule->event('node_update')
       ->condition(rules_condition('scheduler_condition_node_is_scheduled_for_unpublishing', array('data:select' => 'node:node')))
-      ->action('drupal_message', array('message' => $message8));
+      ->action('backdrop_message', array('message' => $message8));
     $rule->access();
     $rule->integrityCheck();
     $rule->save('rule_id_8', $message8);
 
     // Edit the node but do not enter any scheduling dates.
-    $this->drupalPost('node/' . $node->nid . '/edit', array(), t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', array(), t('Save'));
 
     // Check that the conditions have been met or not as expceted.
     $this->assertText($message5, '"' . $message5 . '" is shown');
@@ -1544,7 +1518,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $edit = array(
       'publish_on' => date('Y-m-d H:i:s', strtotime('+1 day', REQUEST_TIME)),
     );
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
 
     // Check that the conditions have been met (or not) as expected.
     $this->assertNoText($message5, '"' . $message5 . '" is not shown');
@@ -1556,7 +1530,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
     $edit = array(
       'unpublish_on' => date('Y-m-d H:i:s', strtotime('+2 day', REQUEST_TIME)),
     );
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
 
     // Check that the conditions have been met (or not) as expected.
     $this->assertNoText($message5, '"' . $message5 . '" is not shown');
@@ -1595,7 +1569,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
   public function testRulesEvents() {
 
     // Create six reaction rules, one for each event that Scheduler triggers.
-    // phpcs:set Drupal.Arrays.Array lineLimit 150
+    // phpcs:set Backdrop.Arrays.Array lineLimit 150
     $rule_data = array(
       1 => array('scheduler_new_node_is_scheduled_for_publishing_event', 'A new node is created and is scheduled for publishing.'),
       2 => array('scheduler_existing_node_is_scheduled_for_publishing_event', 'An existing node is saved and is scheduled for publishing.'),
@@ -1604,28 +1578,28 @@ class SchedulerRulesTest extends SchedulerTestBase {
       5 => array('scheduler_existing_node_is_scheduled_for_unpublishing_event', 'An existing node is saved and is scheduled for unpublishing.'),
       6 => array('scheduler_node_has_been_unpublished_event', 'Scheduler has unpublished this node during cron.'),
     );
-    // phpcs:set Drupal.Arrays.Array lineLimit 120
+    // phpcs:set Backdrop.Arrays.Array lineLimit 120
     foreach ($rule_data as $i => $values) {
       list($event_name, $description) = $values;
       $rule = rules_reaction_rule();
       $this->eventMessage[$i] = 'RULE ' . $i . '. ' . $description;
       $rule->event($event_name)
-        ->action('drupal_message', array('message' => $this->eventMessage[$i]));
+        ->action('backdrop_message', array('message' => $this->eventMessage[$i]));
       $rule->access();
       $rule->integrityCheck();
       $rule->save('rule_id_' . $i, $this->eventMessage[$i]);
     }
 
-    $this->drupalLogin($this->adminUser);
+    $this->backdropLogin($this->adminUser);
 
     // Create a node without any scheduled dates, using node/add/page not
-    // drupalCreateNode(), and check that no events are triggered.
+    // backdropCreateNode(), and check that no events are triggered.
     $edit = array(
       'title' => 'Test for no events on creation',
       'body[' . LANGUAGE_NONE . '][0][value]' => $this->randomString(30),
     );
-    $this->drupalPost('node/add/page', $edit, t('Save'));
-    $node = $this->drupalGetNodeByTitle($edit['title']);
+    $this->backdropPost('node/add/page', $edit, t('Save'));
+    $node = $this->backdropGetNodeByTitle($edit['title']);
     $this->checkEventText();
 
     // Edit the node and check that no events are triggered.
@@ -1633,7 +1607,7 @@ class SchedulerRulesTest extends SchedulerTestBase {
       'title' => 'Test for no events on edit',
       'body[' . LANGUAGE_NONE . '][0][value]' => $this->randomString(30),
     );
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
     $this->checkEventText();
 
     // Create a new node with a publish-on date, and check that only event 1 is
@@ -1644,8 +1618,8 @@ class SchedulerRulesTest extends SchedulerTestBase {
       'publish_on' => date('Y-m-d H:i:s', time() + 3),
       'body[' . LANGUAGE_NONE . '][0][value]' => $this->randomString(30),
     );
-    $this->drupalPost('node/add/page', $edit, t('Save'));
-    $node = $this->drupalGetNodeByTitle($edit['title']);
+    $this->backdropPost('node/add/page', $edit, t('Save'));
+    $node = $this->backdropGetNodeByTitle($edit['title']);
     $this->checkEventText(array(1));
 
     // Edit this node and check that only event 2 is triggered.
@@ -1653,14 +1627,14 @@ class SchedulerRulesTest extends SchedulerTestBase {
       'title' => 'Edit node with publish-on date',
       'body[' . LANGUAGE_NONE . '][0][value]' => $this->randomString(30),
     );
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
     $this->checkEventText(array(2));
 
     // Delay before running cron to ensure that the date will be in the past, so
     // that the node gets processed. Then assert that only event 3 is triggered.
     sleep(5);
     $this->cronRun();
-    $this->drupalGet('admin/reports/dblog');
+    $this->backdropGet('admin/reports/dblog');
     $this->checkEventText(array(3));
 
     // Create a new node with an unpublish-on date, and check that only event 4
@@ -1670,8 +1644,8 @@ class SchedulerRulesTest extends SchedulerTestBase {
       'unpublish_on' => date('Y-m-d H:i:s', time() + 3),
       'body[' . LANGUAGE_NONE . '][0][value]' => $this->randomString(30),
     );
-    $this->drupalPost('node/add/page', $edit, t('Save'));
-    $node = $this->drupalGetNodeByTitle($edit['title']);
+    $this->backdropPost('node/add/page', $edit, t('Save'));
+    $node = $this->backdropGetNodeByTitle($edit['title']);
     $this->checkEventText(array(4));
 
     // Edit this node and check that only event 5 is triggered.
@@ -1679,14 +1653,14 @@ class SchedulerRulesTest extends SchedulerTestBase {
       'title' => 'Edit node with unpublish-on date',
       'body[' . LANGUAGE_NONE . '][0][value]' => $this->randomString(30),
     );
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
     $this->checkEventText(array(5));
 
     // Delay before running cron to ensure that the date will be in the past, so
     // that the node gets processed. Then assert that event 6 is triggered.
     sleep(5);
     $this->cronRun();
-    $this->drupalGet('admin/reports/dblog');
+    $this->backdropGet('admin/reports/dblog');
     $this->checkEventText(array(6));
 
     // Create a new node with both publish-on and unpublish-on dates, and check
@@ -1697,8 +1671,8 @@ class SchedulerRulesTest extends SchedulerTestBase {
       'unpublish_on' => date('Y-m-d H:i:s', time() + 4),
       'body[' . LANGUAGE_NONE . '][0][value]' => $this->randomString(30),
     );
-    $this->drupalPost('node/add/page', $edit, t('Save'));
-    $node = $this->drupalGetNodeByTitle($edit['title']);
+    $this->backdropPost('node/add/page', $edit, t('Save'));
+    $node = $this->backdropGetNodeByTitle($edit['title']);
     $this->checkEventText(array(1, 4));
 
     // Edit this node and check that events 2 and 5 are triggered.
@@ -1706,14 +1680,14 @@ class SchedulerRulesTest extends SchedulerTestBase {
       'title' => 'Edit node with both dates',
       'body[' . LANGUAGE_NONE . '][0][value]' => $this->randomString(30),
     );
-    $this->drupalPost('node/' . $node->nid . '/edit', $edit, t('Save'));
+    $this->backdropPost('node/' . $node->nid . '/edit', $edit, t('Save'));
     $this->checkEventText(array(2, 5));
 
     // Delay before running cron to ensure that the dates will be in the past.
     // Then assert that events 3, 5 & 6 are triggered.
     sleep(6);
     $this->cronRun();
-    $this->drupalGet('admin/reports/dblog');
+    $this->backdropGet('admin/reports/dblog');
     $this->checkEventText(array(3, 5, 6));
   }
 

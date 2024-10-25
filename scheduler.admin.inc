@@ -663,7 +663,8 @@ function scheduler_list($show, $uid) {
   $destination = backdrop_get_destination();
   $rows = array();
 
-  foreach ($result as $node) {
+  foreach ($result as $node_data) {
+    $node = node_load($node_data->nid);
     // Check the access allowed on this node.
     $can_edit = node_access('update', $node);
     $can_delete = node_access('delete', $node);
@@ -673,17 +674,29 @@ function scheduler_list($show, $uid) {
       // Node type is present so this indicates a valid join with the node
       // table. Provide regular operations to edit and delete the node.
       if ($can_edit) {
-        $ops[] = l(t('edit'), 'node/' . $node->nid . '/edit', array('query' => $destination));
+        $ops['edit'] = array(
+          'title' => t('Edit'),
+          'href' => 'node/' . $node->nid . '/edit',
+          'query' => $destination,
+        );
       }
       if ($can_delete) {
-        $ops[] = l(t('delete'), 'node/' . $node->nid . '/delete', array('query' => $destination));
+        $ops['delete'] = array(
+          'title' => t('Delete'),
+          'href' => 'node/' . $node->nid . '/delete',
+          'query' => $destination,
+        );
       }
     }
     else {
       // There was no matching row in the node table. Provide a special link to
       // delete the row from the Scheduler table.
       if ($can_delete) {
-        $ops[] = l(t('delete'), 'admin/content/scheduler/delete/' . $node->nid, array('query' => $destination));
+        $ops['delete'] = array(
+          'title' => t('Delete'),
+          'href' => 'admin/content/scheduler/delete/' . $node->nid,
+          'query' => $destination,
+        );
       }
     }
 
@@ -694,7 +707,10 @@ function scheduler_list($show, $uid) {
       ($node->type ? ($node->status ? t('Published') : t('Unpublished')) : ''),
       ($node->publish_on ? format_date($node->publish_on) : '&nbsp;'),
       ($node->unpublish_on ? format_date($node->unpublish_on) : '&nbsp;'),
-      implode(' ', $ops),
+      array('data' => array(
+        '#type' => 'operations',
+        '#links' => $ops,
+      )),
     );
   }
   if (count($rows) && ($pager = theme('pager'))) {
