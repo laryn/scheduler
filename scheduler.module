@@ -624,8 +624,8 @@ function scheduler_node_insert($node) {
   if (!empty($node->publish_on) || !empty($node->unpublish_on)) {
     db_insert('scheduler')->fields(array(
       'nid' => $node->nid,
-      'publish_on' => $node->publish_on,
-      'unpublish_on' => $node->unpublish_on,
+      'publish_on' => $node->publish_on ? $node->publish_on : 0,
+      'unpublish_on' => $node->unpublish_on ? $node->unpublish_on : 0,
     ))->execute();
 
     // Invoke the events to indicate that a new node has been scheduled.
