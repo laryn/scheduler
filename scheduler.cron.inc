@@ -40,8 +40,8 @@ function _scheduler_publish() {
   backdrop_alter('scheduler_nid_list', $nids, $action);
 
   foreach ($nids as $nid) {
-    $n = node_load($nid);
-    $config = config('node.type.' . $n->type);
+    $node = node_load($nid);
+    $config = config('node.type.' . $node->type);
 
     // Check that scheduled publishing is (still) enabled for this type.
     if (!$config->get('scheduler_publish_enable')) {
@@ -49,49 +49,49 @@ function _scheduler_publish() {
     }
 
     // Check that other modules allow the action on this node.
-    if (!_scheduler_allow($n, $action)) {
+    if (!_scheduler_allow($node, $action)) {
       continue;
     }
 
     // Update timestamps.
-    $n->changed = $n->publish_on;
-    $old_creation_date = $n->created;
+    $node->changed = $node->publish_on;
+    $old_creation_date = $node->created;
     if ($config->get('scheduler_publish_touch') == 1) {
-      $n->created = $n->publish_on;
+      $node->created = $node->publish_on;
     }
 
     $create_publishing_revision = $config->get('scheduler_publish_revision') == 1;
     if ($create_publishing_revision) {
-      $n->revision = TRUE;
+      $node->revision = TRUE;
       // Use a core date format to guarantee a time is included.
-      $n->log = t('Node published by Scheduler on @now. Previous creation date was @date.', array(
+      $node->log = t('Node published by Scheduler on @now. Previous creation date was @date.', array(
         '@now' => format_date(REQUEST_TIME, 'short'),
         '@date' => format_date($old_creation_date, 'short'),
       ));
     }
     // Unset publish_on so the node will not get rescheduled by subsequent calls
     // to node_save(). Save the value for use when calling Rules.
-    $publish_on = $n->publish_on;
-    $n->publish_on = NULL;
+    $publish_on = $node->publish_on;
+    $node->publish_on = NULL;
 
     // Invoke scheduler API to allow modules to alter the node before it is
     // saved.
     // For 8.x this 'pre' call is moved up to just before 'Update timestamps'.
     // See https://www.drupal.org/node/2311273
-    _scheduler_scheduler_api($n, 'pre_' . $action);
+    _scheduler_scheduler_api($node, 'pre_' . $action);
 
     // Use the actions system to publish the node.
-    watchdog('scheduler', '@type: scheduled publishing of %title.', array('@type' => $n->type, '%title' => $n->title), WATCHDOG_NOTICE, l(t('view'), 'node/' . $n->nid, array('alias' => TRUE)));
-    $context['node'] = $n;
-    actions_execute('node_publish_action', $n, $context);
+    watchdog('scheduler', '@type: scheduled publishing of %title.', array('@type' => $node->type, '%title' => $node->title), WATCHDOG_NOTICE, l(t('view'), 'node/' . $node->nid, array('alias' => TRUE)));
+    $node->status = NODE_PUBLISHED;
+    $node->save();
 
     // Invoke the event to tell Rules that Scheduler has published this node.
     if (module_exists('rules')) {
-      rules_invoke_event('scheduler_node_has_been_published_event', $n, $publish_on, $n->unpublish_on);
+      rules_invoke_event('scheduler_node_has_been_published_event', $node, $publish_on, $node->unpublish_on);
     }
 
     // Invoke scheduler API for modules to react after the node is published.
-    _scheduler_scheduler_api($n, $action);
+    _scheduler_scheduler_api($node, $action);
 
     $result = TRUE;
   }
@@ -131,8 +131,8 @@ function _scheduler_unpublish() {
   backdrop_alter('scheduler_nid_list', $nids, $action);
 
   foreach ($nids as $nid) {
-    $n = node_load($nid);
-    $config = config('node.type.' . $n->type);
+    $node = node_load($nid);
+    $config = config('node.type.' . $node->type);
 
     // Check that scheduled publishing is (still) enabled for this type.
     if (!$config->get('scheduler_unpublish_enable')) {
@@ -140,53 +140,53 @@ function _scheduler_unpublish() {
     }
 
     // Check that other modules allow the action on this node.
-    if (!_scheduler_allow($n, $action)) {
+    if (!_scheduler_allow($node, $action)) {
       continue;
     }
 
     // Do not process the node if it has a publish_on time which is in the past,
     // as this implies that scheduled publishing has been blocked by one of the
     // API functions we provide. Hence unpublishing should be halted too.
-    if (!empty($n->publish_on) && $n->publish_on <= REQUEST_TIME) {
+    if (!empty($node->publish_on) && $node->publish_on <= REQUEST_TIME) {
       continue;
     }
 
     // Update timestamps.
-    $old_change_date = $n->changed;
-    $n->changed = $n->unpublish_on;
+    $old_change_date = $node->changed;
+    $node->changed = $node->unpublish_on;
 
     $create_unpublishing_revision = $config->get('scheduler_unpublish_revision') == 1;
     if ($create_unpublishing_revision) {
-      $n->revision = TRUE;
+      $node->revision = TRUE;
       // Use a core date format to guarantee a time is included.
-      $n->log = t('Node unpublished by Scheduler on @now. Previous change date was @date.', array(
+      $node->log = t('Node unpublished by Scheduler on @now. Previous change date was @date.', array(
         '@now' => format_date(REQUEST_TIME, 'short'),
         '@date' => format_date($old_change_date, 'short'),
       ));
     }
     // Unset unpublish_on so the node will not get rescheduled by subsequent
     // calls to node_save(). Save the value for use when calling Rules.
-    $unpublish_on = $n->unpublish_on;
-    $n->unpublish_on = NULL;
+    $unpublish_on = $node->unpublish_on;
+    $node->unpublish_on = NULL;
 
     // Invoke scheduler API to allow modules to alter the node before it is
     // saved.
     // For 8.x this 'pre' call is moved up to just before 'Update timestamps'.
     // See https://www.drupal.org/node/2311273
-    _scheduler_scheduler_api($n, 'pre_' . $action);
+    _scheduler_scheduler_api($node, 'pre_' . $action);
 
     // Use the actions system to unpublish the node.
-    watchdog('scheduler', '@type: scheduled unpublishing of %title.', array('@type' => $n->type, '%title' => $n->title), WATCHDOG_NOTICE, l(t('view'), 'node/' . $n->nid, array('alias' => TRUE)));
-    $context['node'] = $n;
-    actions_execute('node_unpublish_action', $n, $context);
+    watchdog('scheduler', '@type: scheduled unpublishing of %title.', array('@type' => $node->type, '%title' => $node->title), WATCHDOG_NOTICE, l(t('view'), 'node/' . $node->nid, array('alias' => TRUE)));
+    $node->status = NODE_NOT_PUBLISHED;
+    $node->save();
 
     // Invoke event to tell Rules that Scheduler has unpublished this node.
     if (module_exists('rules')) {
-      rules_invoke_event('scheduler_node_has_been_unpublished_event', $n, $n->publish_on, $unpublish_on);
+      rules_invoke_event('scheduler_node_has_been_unpublished_event', $node, $node->publish_on, $unpublish_on);
     }
 
     // Invoke scheduler API for modules to react after the node is unpublished.
-    _scheduler_scheduler_api($n, 'unpublish');
+    _scheduler_scheduler_api($node, 'unpublish');
 
     $result = TRUE;
   }
