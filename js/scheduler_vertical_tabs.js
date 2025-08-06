@@ -22,10 +22,10 @@ Backdrop.behaviors.scheduler_settings = {
     // Provide summary when editing a node.
     $('fieldset#edit-scheduler-settings', context).backdropSetSummary(function(context) {
       var vals = [];
-      if ($('#edit-publish-on').val() || $('#edit-publish-on-datepicker-popup-0').val()) {
+      if ($('#edit-publish-on-date').val()) {
         vals.push(Backdrop.t('Scheduled for publishing'));
       }
-      if ($('#edit-unpublish-on').val() || $('#edit-unpublish-on-datepicker-popup-0').val()) {
+      if ($('#edit-unpublish-on-date').val()) {
         vals.push(Backdrop.t('Scheduled for unpublishing'));
       }
       if (!vals.length) {
