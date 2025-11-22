@@ -62,10 +62,10 @@ function _scheduler_form_alter(&$form, $form_state) {
 
   // If there is a text value then convert it to a Unix timestamp.
   if (isset($defaults->publish_on) && $defaults->publish_on && !is_numeric($defaults->publish_on)) {
-    $defaults->publish_on = _scheduler_strtotime($defaults->publish_on);
+    $defaults->publish_on = is_array($defaults->publish_on) ? _scheduler_strtotime($defaults->publish_on['date'] . ' ' . $defaults->publish_on['time']) : _scheduler_strtotime($defaults->publish_on);
   }
   if (isset($defaults->unpublish_on) && $defaults->unpublish_on && !is_numeric($defaults->unpublish_on)) {
-    $defaults->unpublish_on = _scheduler_strtotime($defaults->unpublish_on);
+    $defaults->unpublish_on = is_array($defaults->unpublish_on) ? _scheduler_strtotime($defaults->unpublish_on['date'] . ' ' . $defaults->unpublish_on['time']) : _scheduler_strtotime($defaults->unpublish_on);
   }
 
   // A publish_on date is required if the content type option is set and the
